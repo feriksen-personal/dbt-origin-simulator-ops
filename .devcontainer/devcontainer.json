@@ -1,13 +1,13 @@
 {
   "name": "dbt-azure-demo-source-ops",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "image": "python:3.11-slim",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.11"
-    },
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "configureZshAsDefaultShell": true
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": false,
+      "upgradePackages": false
     },
     "ghcr.io/devcontainers-extra/features/starship:1": {}
   },
@@ -15,7 +15,9 @@
     "vscode": {
       "extensions": [
         "anthropic.claude-code",
-        "redhat.vscode-yaml"
+        "redhat.vscode-yaml",
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
@@ -25,11 +27,8 @@
     }
   },
   "postCreateCommand": ".devcontainer/post-create.sh",
-  "forwardPorts": [],
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached"
-  ],
-  "remoteUser": "vscode",
-  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}"
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.config/gh,target=/root/.config/gh,type=bind,consistency=cached"
+  ]
 }
