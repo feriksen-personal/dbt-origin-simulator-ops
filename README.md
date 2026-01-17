@@ -1,7 +1,7 @@
 # dbt-azure-demo-source-ops
 
 [![CI](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/actions/workflows/test-package.yml/badge.svg)](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/actions/workflows/test-package.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![dbt](https://img.shields.io/badge/dbt-%3E%3D1.10.0-green.svg)](https://www.getdbt.com/)
 
 **Manage demo source data for dbt projects** - Four simple operations: load baseline, apply deltas, reset, and check status.
