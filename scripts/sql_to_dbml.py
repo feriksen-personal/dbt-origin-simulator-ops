@@ -33,20 +33,29 @@ class Column:
         """Convert column to DBML format."""
         # Clean up type (remove trailing commas from SQL parsing)
         clean_type = self.data_type.rstrip(',')
-        parts = [f"  {self.name} {clean_type}"]
+
+        # Build column definition with type
+        column_def = f"  {self.name} {clean_type}"
+
+        # Build attributes list (all go in ONE bracket set)
+        attributes = []
 
         if self.is_pk:
-            parts.append("[pk]")
+            attributes.append("pk")
         elif not self.is_nullable:
-            parts.append("[not null]")
+            attributes.append("not null")
 
         if self.default:
-            parts.append(f"[default: {self.default}]")
+            attributes.append(f"default: {self.default}")
 
         if self.comment:
-            parts.append(f"[note: '{self.comment}']")
+            attributes.append(f"note: '{self.comment}'")
 
-        return " ".join(parts)
+        # Combine into single bracket set if there are attributes
+        if attributes:
+            column_def += f" [{', '.join(attributes)}]"
+
+        return column_def
 
 
 class ForeignKey:
