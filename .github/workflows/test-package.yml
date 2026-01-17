@@ -180,13 +180,11 @@ jobs:
               grep -v "─" | \
               sed 's/\x1b\[[0-9;]*m//g' | \
               sed 's/^[0-9:]\{8\}  //g' | \
-              sed 's/║//g' | \
+              sed 's/║/|/g' | \
               sed 's/│/|/g' | \
-              sed 's/^[[:space:]]*|/|/g' | \
-              sed 's/|[[:space:]]*$/|/g' | \
-              sed 's/  */ /g' | \
-              sed 's/ |/|/g' | \
-              sed 's/| /|/g' >> "$output"
+              sed 's/|[[:space:]]*|/|/g' | \
+              sed 's/|[[:space:]]/| /g' | \
+              sed 's/[[:space:]]|/ |/g' >> "$output"
           }
 
           convert_to_markdown /tmp/verify_baseline.log /tmp/baseline_table.md
