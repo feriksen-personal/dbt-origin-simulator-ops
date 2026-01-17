@@ -205,3 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# dbt artifacts
+dbt_packages/
+logs/
+
+# Claude Code local settings
+.claude/settings.local.json

@@ -1,0 +1,27 @@
+name: 'demo_source_ops'
+version: '1.0.0'
+config-version: 2
+
+require-dbt-version: [">=1.6.0", "<2.0.0"]
+
+profile: 'demo_source'
+
+# Default database names - can be overridden in consuming project
+vars:
+  demo_source_ops:
+    shop_db: 'jaffle_shop'
+    crm_db: 'jaffle_crm'
+
+# No models in this package - only macros and data
+model-paths: []
+analysis-paths: []
+test-paths: []
+seed-paths: []
+macro-paths: ["macros"]
+snapshot-paths: []
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
