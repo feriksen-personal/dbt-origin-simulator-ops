@@ -48,3 +48,15 @@ CREATE TABLE IF NOT EXISTS jaffle_shop.order_items (
     FOREIGN KEY (order_id) REFERENCES jaffle_shop.orders(order_id),
     FOREIGN KEY (product_id) REFERENCES jaffle_shop.products(product_id)
 );
+
+-- Payments table
+CREATE TABLE IF NOT EXISTS jaffle_shop.payments (
+    payment_id INTEGER PRIMARY KEY,
+    order_id INTEGER,
+    payment_method VARCHAR(20),
+    amount DECIMAL(10,2),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES jaffle_shop.orders(order_id)
+);
