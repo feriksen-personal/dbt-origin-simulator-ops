@@ -210,5 +210,5 @@ __marimo__/
 dbt_packages/
 logs/
 
-# Claude Code local settings
-.claude/settings.local.json
+# Claude AI assistant files (local only)
+.claude/

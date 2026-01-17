@@ -30,6 +30,14 @@
 
 ---
 
+## Why This Package?
+
+When demonstrating dbt or developing data pipelines, you need realistic source databases that you can initialize, evolve over time, and reset instantly. This package provides four simple operations to manage demo data without maintaining complex seeding scripts or manually recreating databases.
+
+Perfect for dbt demos, training workshops, development environments, and CI/CD testing. See the [wiki](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki) for detailed use cases and patterns.
+
+---
+
 ## Features
 
 Four operations via `dbt run-operation`:
@@ -47,6 +55,15 @@ Dual-adapter support:
 ---
 
 ## Quick Start
+
+### Prerequisites
+
+- **dbt** >= 1.10.0
+- One of the following adapters:
+  - **dbt-duckdb** (for local development) - zero cloud costs
+  - **dbt-sqlserver** (for Azure SQL demos) - requires Azure account
+
+Optional: Azure SQL databases provisioned via [dbt-azure-demo-source-data](https://github.com/feriksen-personal/dbt-azure-demo-source-data)
 
 ### 1. Install Package
 
@@ -90,6 +107,14 @@ demo_source:
       password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
 ```
 
+Set environment variables:
+
+```bash
+export DEMO_SQL_SERVER=your-server-name
+export DEMO_SQL_USER=sqladmin
+export DEMO_SQL_PASSWORD=your-password
+```
+
 ### 3. Run Operations
 
 ```bash
@@ -112,11 +137,30 @@ dbt run-operation demo_reset --profile demo_source
 
 **jaffle_shop** (e-commerce):
 
-- `customers`, `products`, `orders`, `order_items`
+- **customers** - Customer records with email addresses and soft delete tracking
+- **products** - Product catalog with pricing and categories
+- **orders** - Order transactions with status tracking and customer relationships
+- **order_items** - Line items linking products to orders with quantities and pricing
+- **payments** - Payment records linked to orders (added in deltas)
 
 **jaffle_crm** (marketing):
 
-- `campaigns`, `email_activity`, `web_sessions`
+- **campaigns** - Marketing campaigns with budgets and dates
+- **email_activity** - Email engagement metrics (sent, opened, clicked)
+- **web_sessions** - Website session tracking with page views
+
+See the [Data Schemas wiki page](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki/Data-Schemas) for detailed column definitions and ID ranges.
+
+---
+
+## What's Inside
+
+```
+dbt-azure-demo-source-ops/
+├── macros/              # Four operations: load_baseline, apply_delta, reset, status
+├── data/duckdb/         # DuckDB SQL files (baseline, deltas, utilities)
+└── data/azure/          # Azure SQL files (to be implemented)
+```
 
 ---
 
@@ -131,6 +175,19 @@ vars:
 ```
 
 For detailed documentation, see the [project wiki](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki)
+
+---
+
+## Contributing
+
+Contributions welcome! Please open an issue or submit a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## Acknowledgments
+
+- Built to complement [dbt-azure-demo-source-data](https://github.com/feriksen-personal/dbt-azure-demo-source-data) infrastructure repo
+- Inspired by the [Jaffle Shop](https://github.com/dbt-labs/jaffle_shop) demo project
 
 ---
 
