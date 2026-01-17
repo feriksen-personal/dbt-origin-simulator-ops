@@ -13,6 +13,11 @@ echo "=== Post-create setup starting ==="
 echo "Installing dbt-core and yamllint..."
 pip install --no-cache-dir dbt-core yamllint
 
+# Configure Starship
+echo "Configuring Starship prompt..."
+mkdir -p ~/.config
+cp .devcontainer/starship.toml ~/.config/starship.toml
+
 # Verify installations
 echo ""
 echo "=== Verifying installations ==="
