@@ -42,6 +42,54 @@ Complete documentation for managing demo source data in dbt projects.
 
 ---
 
+## How This Differs from Traditional Demo Databases
+
+### Traditional Demo Databases
+
+Popular databases like **Northwind Traders**, **AdventureWorks**, and **Pagila** are excellent for:
+
+- Learning SQL queries and data transformations
+- Building BI dashboards and reports
+- Exploring schema design and normalization
+- Practicing data modeling
+
+**Key characteristic**: Static, complete datasets
+
+### This Package: Data Engineering Focus
+
+**dbt-azure-demo-source-ops** is designed for a different purpose:
+
+- Learning **data integration patterns** (incremental loads, CDC, SCD Type 2)
+- Testing **data pipeline orchestration** (Lakeflow Connect, Databricks workflows)
+- Developing **change tracking strategies** (soft deletes, audit columns)
+- Simulating **realistic source system evolution** over time
+- Practicing **delta architecture patterns** in a controlled environment
+
+**Key characteristic**: Dynamic, versioned source systems with reproducible state transitions
+
+### Use Case Comparison
+
+| Scenario                                 | Traditional Demo DB   | This Package                                |
+| ---------------------------------------- | --------------------- | ------------------------------------------- |
+| "How do I write a complex JOIN?"         | ✅ Northwind          | ❌ Not the focus                            |
+| "How do I detect changed records?"       | ❌ Static data        | ✅ Apply deltas, observe changes            |
+| "How do I test incremental loads?"       | ❌ No state evolution | ✅ Apply Day 1, then Day 2, then Day 3      |
+| "How does CDC work?"                     | ❌ No change tracking | ✅ Azure SQL with change tracking enabled   |
+| "How do I handle soft deletes?"          | ❌ No deleted records | ✅ `deleted_at` column pattern              |
+| "How do I test pipeline reset/recovery?" | ❌ Can't reset state  | ✅ `demo_reset` operation                   |
+| "How do I practice Lakeflow Connect?"    | ❌ Static source      | ✅ DuckDB/MotherDuck as evolving source     |
+
+### Complementary, Not Competing
+
+You might use both:
+
+- **Traditional demo DB**: "What insights can I derive from sales data?"
+- **This package**: "How do I incrementally sync those sales from the source system?"
+
+This package is for the **infrastructure layer** - the often-overlooked but critical work of reliably getting data from point A to point B as it evolves.
+
+---
+
 ## New to This Package?
 
 1. Start with [Getting Started](Getting-Started) for installation and first-time setup

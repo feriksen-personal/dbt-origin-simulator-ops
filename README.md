@@ -38,6 +38,8 @@
 
 When developing data pipelines, you need realistic source databases that you can initialize, evolve over time, and reset instantly. This package acts as a **control plane for managing stable, versioned source system emulations** across multiple platforms (DuckDB, Azure SQL, MotherDuck) without maintaining complex seeding scripts or manually recreating databases.
 
+**Unlike traditional demo databases** (Northwind, AdventureWorks, Pagila) which provide static datasets for learning SQL and data modeling, this package focuses on **data engineering patterns**: incremental loads, CDC, change tracking, SCD Type 2, and pipeline orchestration. The four operations (`load_baseline`, `apply_delta`, `reset`, `status`) let you simulate realistic source system evolution in a controlled, reproducible way—perfect for learning Lakeflow Connect, testing delta architectures, or developing robust ingestion patterns.
+
 While built with dbt operations, the managed source systems can be used by **any data pipeline tool or workflow** - Spark jobs, Pandas scripts, SQL queries, or even standalone applications that need consistent test data.
 
 **Key Benefits:**
