@@ -58,42 +58,38 @@ jobs:
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
-      # Temporarily disabled - jaffle_crm contracts need schema column fixes
-      # (campaign_name vs name, activity_id vs email_activity_id, etc.)
-      # - name: Validate Soda contracts - jaffle_crm
-      #   run: |
-      #     soda scan -d demo_source \
-      #       -c extras/data_quality/soda/configuration.yml \
-      #       extras/data_quality/soda/contracts/jaffle_crm.yml
+      - name: Validate Soda contracts - jaffle_crm
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
 
-      # Temporarily disabled - scans reference both schemas, need jaffle_crm contracts fixed first
-      # - name: Validate Soda scan - baseline checks
-      #   run: |
-      #     soda scan -d demo_source \
-      #       -c extras/data_quality/soda/configuration.yml \
-      #       extras/data_quality/soda/scans/baseline_checks.yml
+      - name: Validate Soda scan - baseline checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/baseline_checks.yml
 
-      # - name: Validate Soda scan - relationship checks
-      #   run: |
-      #     soda scan -d demo_source \
-      #       -c extras/data_quality/soda/configuration.yml \
-      #       extras/data_quality/soda/scans/relationship_checks.yml
+      - name: Validate Soda scan - relationship checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
 
-      # Temporarily disabled - delta scans need contracts fixed first
-      # - name: Apply Day 1 delta
-      #   run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source"
+      - name: Apply Day 1 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source"
 
-      # - name: Validate Soda scan - Day 1 delta checks
-      #   run: |
-      #     soda scan -d demo_source \
-      #       -c extras/data_quality/soda/configuration.yml \
-      #       extras/data_quality/soda/scans/delta_day1_checks.yml
+      - name: Validate Soda scan - Day 1 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day1_checks.yml
 
-      # - name: Validate Soda scan - relationships after delta
-      #   run: |
-      #     soda scan -d demo_source \
-      #       -c extras/data_quality/soda/configuration.yml \
-      #       extras/data_quality/soda/scans/relationship_checks.yml
+      - name: Validate Soda scan - relationships after delta
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
 
   validate-soda-databricks:
     name: Validate Soda Contracts & Scans (Databricks)
