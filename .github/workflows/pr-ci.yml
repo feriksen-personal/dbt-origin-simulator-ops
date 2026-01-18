@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          origin_simulator:
             target: dev
             outputs:
               dev:
@@ -37,7 +37,7 @@ jobs:
 
       - name: Run dbt parse
         run: |
-          dbt parse --profile demo_source
+          dbt parse --profile origin_simulator
           echo "✓ All dbt configuration valid"
 
       - name: Validate extras/dbt/sources.yml (if exists)
@@ -47,7 +47,7 @@ jobs:
             # Copy to models/ temporarily for validation
             mkdir -p models/staging
             cp extras/dbt/sources.yml models/staging/sources.yml
-            dbt parse --profile demo_source
+            dbt parse --profile origin_simulator
             echo "✓ extras/dbt/sources.yml is valid"
           else
             echo "⚠ extras/dbt/sources.yml not found, skipping"
@@ -145,16 +145,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install dbt-core dbt-duckdb
 
+      - name: Get dbt-duckdb version
+        id: duckdb-version
+        run: |
+          VERSION=$(pip show dbt-duckdb | grep Version | cut -d' ' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dbt-duckdb version: ${VERSION}"
+
       - name: Create profiles.yml
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          origin_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'demo_source.duckdb'
+                path: 'origin_simulator.duckdb'
           EOF
 
       - name: Verify dbt installation
@@ -164,37 +171,38 @@ jobs:
       - name: Test demo_load_baseline
         run: |
           echo "=== Testing demo_load_baseline ==="
-          dbt run-operation demo_load_baseline --profile demo_source
+          dbt run-operation demo_load_baseline --profile origin_simulator
 
       - name: Verify baseline data
         run: |
           echo "=== Verifying baseline data ==="
-          dbt run-operation demo_verify_baseline --profile demo_source 2>&1 | tee /tmp/verify_baseline.log
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_baseline.log
 
       - name: Test demo_status
         run: |
           echo "=== Testing demo_status ==="
-          dbt run-operation demo_status --profile demo_source
+          dbt run-operation demo_status --profile origin_simulator
 
       - name: Test demo_reset
         run: |
           echo "=== Testing demo_reset ==="
-          dbt run-operation demo_reset --profile demo_source
+          dbt run-operation demo_reset --profile origin_simulator
 
       - name: Verify reset restored baseline
         run: |
           echo "=== Verifying reset restored baseline ==="
-          dbt run-operation demo_verify_baseline --profile demo_source 2>&1 | tee /tmp/verify_reset.log
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_reset.log
 
       - name: Final status check
         run: |
           echo "=== Final status check ==="
-          dbt run-operation demo_status --profile demo_source
+          dbt run-operation demo_status --profile origin_simulator
 
       - name: Post test results to PR
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          DUCKDB_VERSION: ${{ steps.duckdb-version.outputs.version }}
         run: |
           # Convert verification output to markdown tables
           convert_to_markdown() {
@@ -223,10 +231,12 @@ jobs:
           convert_to_markdown /tmp/verify_reset.log /tmp/reset_table.md
 
           # Create PR comment
-          cat > /tmp/pr_comment.md << 'EOF'
+          cat > /tmp/pr_comment.md << EOF
           ## 🦆 DuckDB Integration Test Results
 
-          **Connection**: Local DuckDB database (`origin_simulator.duckdb`)
+          ![dbt-duckdb](https://img.shields.io/badge/dbt--duckdb-${DUCKDB_VERSION}-blue.svg)
+
+          **Connection**: Local DuckDB database (\`origin_simulator.duckdb\`)
 
           ### ✓ Baseline Load Verification
 
@@ -271,6 +281,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install dbt-core dbt-databricks
+
+      - name: Get dbt-databricks version
+        id: databricks-version
+        run: |
+          VERSION=$(pip show dbt-databricks | grep Version | cut -d' ' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dbt-databricks version: ${VERSION}"
 
       - name: Set up CI catalog name
         id: catalog
@@ -323,7 +340,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << EOF
-          demo_source:
+          origin_simulator:
             target: databricks
             outputs:
               databricks:
@@ -343,27 +360,27 @@ jobs:
       - name: Test dbt connection
         run: |
           echo "=== Testing Databricks connection ==="
-          dbt debug --profile demo_source --target databricks
+          dbt debug --profile origin_simulator --target databricks
 
       - name: Test demo_load_baseline
         run: |
           echo "=== Testing demo_load_baseline on Databricks ==="
-          dbt run-operation demo_load_baseline --profile demo_source --target databricks
+          dbt run-operation demo_load_baseline --profile origin_simulator --target databricks
 
       - name: Test demo_status
         run: |
           echo "=== Testing demo_status on Databricks ==="
-          dbt run-operation demo_status --profile demo_source --target databricks 2>&1 | tee /tmp/databricks_status.log || true
+          dbt run-operation demo_status --profile origin_simulator --target databricks 2>&1 | tee /tmp/databricks_status.log || true
 
       - name: Test demo_reset
         run: |
           echo "=== Testing demo_reset on Databricks ==="
-          dbt run-operation demo_reset --profile demo_source --target databricks
+          dbt run-operation demo_reset --profile origin_simulator --target databricks
 
       - name: Final status check
         run: |
           echo "=== Final Databricks status check ==="
-          dbt run-operation demo_status --profile demo_source --target databricks 2>&1 | tee /tmp/databricks_final_status.log || true
+          dbt run-operation demo_status --profile origin_simulator --target databricks 2>&1 | tee /tmp/databricks_final_status.log || true
 
       - name: Post Databricks test results to PR
         if: always()
@@ -371,10 +388,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
           CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
+          DATABRICKS_VERSION: ${{ steps.databricks-version.outputs.version }}
         run: |
           # Create PR comment for Databricks results
           cat > /tmp/databricks_comment.md << EOF
           ## 🧱 Databricks Integration Test Results
+
+          ![dbt-databricks](https://img.shields.io/badge/dbt--databricks-${DATABRICKS_VERSION}-blue.svg)
 
           **Connection**:
           - **Host**: \`${DATABRICKS_HOST}\`

@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          origin_simulator:
             target: dev
             outputs:
               dev:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run dbt parse
         run: |
-          dbt parse --profile demo_source
+          dbt parse --profile origin_simulator
           echo "✓ All dbt configuration valid"
 
       - name: Validate extras/dbt/sources.yml (if exists)
@@ -48,7 +48,7 @@ jobs:
             # Copy to models/ temporarily for validation
             mkdir -p models/staging
             cp extras/dbt/sources.yml models/staging/sources.yml
-            dbt parse --profile demo_source
+            dbt parse --profile origin_simulator
             echo "✓ extras/dbt/sources.yml is valid"
           else
             echo "⚠ extras/dbt/sources.yml not found, skipping"
@@ -147,12 +147,12 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          origin_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'demo_source.duckdb'
+                path: 'origin_simulator.duckdb'
           EOF
 
       - name: Verify dbt installation
@@ -162,29 +162,29 @@ jobs:
       - name: Test demo_load_baseline
         run: |
           echo "=== Testing demo_load_baseline ==="
-          dbt run-operation demo_load_baseline --profile demo_source
+          dbt run-operation demo_load_baseline --profile origin_simulator
 
       - name: Verify baseline data
         run: |
           echo "=== Verifying baseline data ==="
-          dbt run-operation demo_verify_baseline --profile demo_source 2>&1 | tee /tmp/verify_baseline.log
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_baseline.log
 
       - name: Test demo_status
         run: |
           echo "=== Testing demo_status ==="
-          dbt run-operation demo_status --profile demo_source
+          dbt run-operation demo_status --profile origin_simulator
 
       - name: Test demo_reset
         run: |
           echo "=== Testing demo_reset ==="
-          dbt run-operation demo_reset --profile demo_source
+          dbt run-operation demo_reset --profile origin_simulator
 
       - name: Verify reset restored baseline
         run: |
           echo "=== Verifying reset restored baseline ==="
-          dbt run-operation demo_verify_baseline --profile demo_source 2>&1 | tee /tmp/verify_reset.log
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_reset.log
 
       - name: Final status check
         run: |
           echo "=== Final status check ==="
-          dbt run-operation demo_status --profile demo_source
+          dbt run-operation demo_status --profile origin_simulator
