@@ -1,0 +1,349 @@
+# GitHub Actions Workflow Example for Testing with dbt-demo-source-ops
+#
+# This is a TEMPLATE for YOUR dbt project's CI/CD pipeline.
+# Copy this file to your project's .github/workflows/ directory and customize.
+#
+# What this workflow does:
+# 1. Sets up demo source databases (jaffle_shop, jaffle_crm)
+# 2. Runs your dbt models against the demo sources
+# 3. Applies delta changes to test incremental models
+# 4. (Optional) Runs data quality checks with Soda Core
+#
+# Copy to: .github/workflows/test-with-demo-sources.yml
+#
+# Documentation: https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki
+
+name: Test with Demo Sources
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # ==========================================================================
+  # Basic Testing: Load baseline and run dbt models
+  # ==========================================================================
+  test-baseline:
+    name: Test against Baseline Data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb
+
+      # Optional: Cache dbt packages for faster builds
+      - name: Cache dbt packages
+        uses: actions/cache@v4
+        with:
+          path: dbt_packages/
+          key: dbt-packages-${{ hashFiles('packages.yml') }}
+
+      - name: Install dbt packages
+        run: dbt deps --profile my_project
+
+      # IMPORTANT: Create profiles.yml for both demo_source and your project
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          # Demo source system profile (for demo_load_baseline operations)
+          demo_source:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'data/demo_source.duckdb'
+                threads: 4
+
+          # YOUR project profile (customize this for your dbt project)
+          my_project:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'target/my_project.duckdb'
+                threads: 4
+                # Add your project-specific configuration here
+          EOF
+
+      # Load baseline demo data (Day 0)
+      - name: Initialize demo source databases
+        run: |
+          echo "Loading baseline demo data..."
+          dbt run-operation demo_load_baseline --profile demo_source
+
+      # Verify baseline data was loaded correctly
+      - name: Verify baseline data
+        run: |
+          echo "Verifying baseline data..."
+          dbt run-operation demo_verify_baseline --profile demo_source
+
+      # Run YOUR dbt models against the demo sources
+      - name: Run dbt models
+        run: |
+          echo "Running dbt models..."
+          dbt build --profile my_project
+
+      # Check status of demo sources
+      - name: Check demo source status
+        run: |
+          dbt run-operation demo_status --profile demo_source
+
+  # ==========================================================================
+  # Incremental Testing: Apply deltas and test incremental models
+  # ==========================================================================
+  test-incremental:
+    name: Test Incremental Models (Day 1-3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb
+
+      - name: Cache dbt packages
+        uses: actions/cache@v4
+        with:
+          path: dbt_packages/
+          key: dbt-packages-${{ hashFiles('packages.yml') }}
+
+      - name: Install dbt packages
+        run: dbt deps --profile my_project
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          demo_source:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'data/demo_source.duckdb'
+                threads: 4
+
+          my_project:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'target/my_project.duckdb'
+                threads: 4
+          EOF
+
+      # Full workflow: Baseline + Day 1 + Day 2 + Day 3
+      - name: Load baseline
+        run: dbt run-operation demo_load_baseline --profile demo_source
+
+      - name: Initial dbt build (full refresh)
+        run: dbt build --profile my_project --full-refresh
+
+      - name: Apply Day 1 changes
+        run: |
+          echo "Applying Day 1 delta..."
+          dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+
+      - name: Run incremental models (Day 1)
+        run: dbt build --profile my_project
+
+      - name: Apply Day 2 changes
+        run: |
+          echo "Applying Day 2 delta..."
+          dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source
+
+      - name: Run incremental models (Day 2)
+        run: dbt build --profile my_project
+
+      - name: Apply Day 3 changes
+        run: |
+          echo "Applying Day 3 delta..."
+          dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source
+
+      - name: Run incremental models (Day 3)
+        run: dbt build --profile my_project
+
+      - name: Final status check
+        run: dbt run-operation demo_status --profile demo_source
+
+  # ==========================================================================
+  # Data Quality Testing: Soda Core integration (optional)
+  # ==========================================================================
+  test-data-quality:
+    name: Data Quality Checks with Soda Core
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb soda-core-duckdb
+
+      - name: Install dbt packages
+        run: dbt deps --profile demo_source
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          demo_source:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'data/demo_source.duckdb'
+                threads: 4
+          EOF
+
+      - name: Load baseline demo data
+        run: dbt run-operation demo_load_baseline --profile demo_source
+
+      # Run Soda Core quality checks on baseline data
+      - name: Run Soda quality checks (jaffle_shop)
+        run: |
+          soda scan -d demo_source \
+            -c extras/soda/configuration.yml \
+            extras/soda/contracts/jaffle_shop.yml
+
+      - name: Run Soda quality checks (jaffle_crm)
+        run: |
+          soda scan -d demo_source \
+            -c extras/soda/configuration.yml \
+            extras/soda/contracts/jaffle_crm.yml
+
+      # Apply Day 1 and re-check data quality
+      - name: Apply Day 1 changes
+        run: dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+
+      - name: Re-run Soda checks after Day 1
+        run: |
+          soda scan -d demo_source \
+            -c extras/soda/configuration.yml \
+            extras/soda/contracts/jaffle_shop.yml
+
+  # ==========================================================================
+  # Matrix Testing: Test against multiple platforms
+  # ==========================================================================
+  test-matrix:
+    name: Matrix Test (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [duckdb, motherduck]
+        include:
+          - platform: duckdb
+            dbt_target: dev
+            path: 'data/demo_source.duckdb'
+          - platform: motherduck
+            dbt_target: motherduck
+            path: 'md:'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb
+
+      - name: Install dbt packages
+        run: dbt deps --profile demo_source
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          demo_source:
+            target: ${{ matrix.dbt_target }}
+            outputs:
+              dev:
+                type: duckdb
+                path: 'data/demo_source.duckdb'
+                threads: 4
+              motherduck:
+                type: duckdb
+                path: 'md:'
+                token: ${{ secrets.MOTHERDUCK_TOKEN }}
+                threads: 4
+          EOF
+
+      - name: Load baseline
+        run: dbt run-operation demo_load_baseline --profile demo_source --target ${{ matrix.dbt_target }}
+
+      - name: Verify baseline
+        run: dbt run-operation demo_verify_baseline --profile demo_source --target ${{ matrix.dbt_target }}
+
+      - name: Check status
+        run: dbt run-operation demo_status --profile demo_source --target ${{ matrix.dbt_target }}
+
+      # Cleanup MotherDuck databases (only for cloud testing)
+      - name: Cleanup MotherDuck databases
+        if: matrix.platform == 'motherduck'
+        run: dbt run-operation demo_reset --profile demo_source --target motherduck
+
+# ==========================================================================
+# Configuration Notes
+# ==========================================================================
+#
+# GitHub Secrets:
+# - MOTHERDUCK_TOKEN: Your MotherDuck service token (for matrix testing)
+#   Add at: Settings → Secrets and variables → Actions → New repository secret
+#
+# Customization:
+# 1. Replace "my_project" with your actual dbt profile name
+# 2. Adjust Python version if your project requires a different version
+# 3. Update dbt adapter (e.g., dbt-snowflake, dbt-bigquery) for your warehouse
+# 4. Modify paths and database names as needed for your project
+# 5. Add your project-specific test steps
+#
+# Profile Setup:
+# - The demo_source profile is for loading/managing demo databases
+# - Your project profile (my_project) is for running YOUR dbt models
+# - Both profiles can use the same DuckDB database or separate databases
+#
+# Caching:
+# - Cache dbt_packages/ to speed up builds (shown in examples)
+# - Consider caching Python dependencies with setup-python's cache option
+#
+# Soda Cloud Integration (optional):
+# - Add SODA_CLOUD_API_KEY_ID and SODA_CLOUD_API_KEY_SECRET as secrets
+# - Update extras/soda/configuration.yml with soda_cloud section
+# - Uncomment soda_cloud configuration in workflow
+#
+# ==========================================================================

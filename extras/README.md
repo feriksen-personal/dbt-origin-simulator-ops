@@ -184,10 +184,60 @@ just baseline       # Load baseline data
 mkdir -p .github/workflows
 cp extras/cicd/github-actions.yml .github/workflows/test-with-demo-sources.yml
 
-# Customize:
-# - Profile names
-# - Your project's dbt models
-# - Add GitHub secrets for MotherDuck token
+# The workflow includes 4 jobs:
+# 1. test-baseline: Load baseline and run your dbt models
+# 2. test-incremental: Apply Days 1-3 and test incremental models
+# 3. test-data-quality: Run Soda Core quality checks (optional)
+# 4. test-matrix: Test against DuckDB and MotherDuck (requires secret)
+
+# Required customizations in the workflow file:
+# 1. Replace "my_project" with your actual dbt profile name
+# 2. Update the my_project profile configuration (warehouse type, connection details)
+# 3. Adjust dbt build commands for your project structure
+# 4. Add your project-specific tests
+
+# GitHub Secrets (for MotherDuck matrix testing):
+# Settings → Secrets and variables → Actions → New repository secret
+# - Name: MOTHERDUCK_TOKEN
+# - Value: Your MotherDuck service token from https://motherduck.com
+
+# Optional: Soda Cloud integration
+# Add these secrets if you want Soda Cloud dashboards:
+# - SODA_CLOUD_API_KEY_ID
+# - SODA_CLOUD_API_KEY_SECRET
+
+# Workflow triggers:
+# - Runs on pull requests to main
+# - Runs on pushes to main
+# - Customize triggers in the workflow file's "on:" section
+
+# What each job does:
+#
+# test-baseline:
+#   - Loads baseline demo data (Day 0: 100 customers, 500 orders)
+#   - Runs your dbt models against the demo sources
+#   - Verifies data was loaded correctly
+#
+# test-incremental:
+#   - Loads baseline, then applies Day 1, 2, and 3 deltas
+#   - Tests that your incremental models handle changes correctly
+#   - Useful for testing SCD Type 2, CDC, and incremental logic
+#
+# test-data-quality:
+#   - Loads baseline and runs Soda Core quality checks
+#   - Validates schema, foreign keys, business rules
+#   - Applies Day 1 and re-checks to test data evolution
+#
+# test-matrix:
+#   - Runs tests against both DuckDB (local) and MotherDuck (cloud)
+#   - Ensures your models work across platforms
+#   - MotherDuck requires MOTHERDUCK_TOKEN secret
+
+# Performance tips:
+# - Jobs run in parallel by default (faster CI)
+# - dbt packages are cached between runs
+# - Consider caching Python dependencies with setup-python cache option
+# - MotherDuck cleanup step prevents database accumulation
 ```
 
 ---
