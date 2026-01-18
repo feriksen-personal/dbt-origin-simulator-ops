@@ -5,7 +5,23 @@
 -- Create crm schema
 CREATE SCHEMA IF NOT EXISTS origin_simulator_jaffle_corp.crm;
 
-COMMENT ON SCHEMA origin_simulator_jaffle_corp.crm IS 'Customer Relationship Management (CRM) schema containing marketing campaign and customer engagement data. This schema includes marketing campaigns, email activity events, and web session events. Tables follow append-only event stream pattern for activity tables.';
+COMMENT ON SCHEMA origin_simulator_jaffle_corp.crm IS '
+**Customer Relationship Management (CRM) Schema**
+
+Marketing campaign and customer engagement data for the demo source system.
+
+### Tables
+
+- **campaigns**: Marketing campaign definitions
+- **email_activity**: Email interaction events (append-only)
+- **web_sessions**: Web session events (append-only)
+
+### Patterns
+
+- Append-only event stream for activity tables
+- Soft delete with `deleted_at` timestamp for campaigns
+- Audit columns: `created_at`, `updated_at`
+';
 
 -- Campaigns table
 CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.crm.campaigns (
