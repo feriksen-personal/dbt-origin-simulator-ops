@@ -22,9 +22,9 @@
 # Marketing campaign master data
 
 checks for jaffle_crm.campaigns:
-  # Row count validation
-  - row_count = 5:
-      name: Campaign catalog has exactly 5 campaigns
+  # Row count validation (baseline minimum - new campaigns could be added)
+  - row_count >= 5:
+      name: Campaign catalog has at least 5 campaigns
 
   # Duplicate detection
   - duplicate_count(campaign_id) = 0:

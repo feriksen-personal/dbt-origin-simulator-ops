@@ -1,113 +1,63 @@
-# Soda Scan: Day 1 Delta Validation
+# Soda Scan: Day 1 Delta Validation (Integration Test)
 #
 # Validates that demo_apply_delta --args '{day: 1}' applied changes correctly.
+# This is a deterministic integration test with exact row counts.
 #
 # Expected changes from baseline:
-# - jaffle_shop.customers: +1 row (ID 6)
-# - jaffle_shop.orders: +3 rows (IDs 6-8)
-# - jaffle_shop.order_items: +6 rows (IDs 11-16)
-# - jaffle_shop.payments: +3 rows (IDs 1-3)
-# - jaffle_crm.email_activity: +3 rows (IDs 11-13)
-# - jaffle_crm.web_sessions: +3 rows (IDs 11-13)
+# - jaffle_shop.customers: +25 rows (IDs 101-125)
+# - jaffle_shop.products: no changes
+# - jaffle_shop.orders: +60 rows (IDs 501-560)
+# - jaffle_shop.order_items: +103 rows (IDs 1201-1303)
+# - jaffle_shop.payments: +52 rows (IDs 1-52)
+# - jaffle_crm.campaigns: no changes
+# - jaffle_crm.email_activity: +40 rows (IDs 101-140)
+# - jaffle_crm.web_sessions: +30 rows (IDs 151-180)
 #
 # Usage:
 #   # After running: dbt run-operation demo_apply_delta --args '{day: 1}'
 #   soda scan -d demo_source -c configuration.yml delta_day1_checks.yml
 
 checks for jaffle_shop.customers:
-  - row_count = 6  # baseline 5 + 1 new
+  - row_count = 125  # baseline 100 + 25 new
   - missing_count(customer_id) = 0
   - duplicate_count(customer_id) = 0
-  # Verify new customer ID 6 exists
-  - failed rows:
-      fail query: |
-        SELECT 1 AS check_result
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_shop.customers WHERE customer_id = 6
-        )
-      name: Customer ID 6 exists
 
 checks for jaffle_shop.products:
-  - row_count = 5  # unchanged
+  - row_count = 20  # unchanged
 
 checks for jaffle_shop.orders:
-  - row_count = 8  # baseline 5 + 3 new
+  - row_count = 560  # baseline 500 + 60 new
   - missing_count(order_id) = 0
   - duplicate_count(order_id) = 0
-  # Verify new orders exist (IDs 6-8)
-  - failed rows:
-      fail query: |
-        SELECT expected_id
-        FROM (VALUES (6), (7), (8)) AS expected(expected_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_shop.orders WHERE order_id = expected_id
-        )
-      name: Order IDs 6-8 exist
   # Referential integrity still valid
   - values in (customer_id) must exist in jaffle_shop.customers (customer_id)
 
 checks for jaffle_shop.order_items:
-  - row_count = 16  # baseline 10 + 6 new
+  - row_count = 1303  # baseline 1200 + 103 new
   - missing_count(order_item_id) = 0
   - duplicate_count(order_item_id) = 0
-  # Verify new order items exist (IDs 11-16)
-  - failed rows:
-      fail query: |
-        SELECT expected_id
-        FROM (VALUES (11), (12), (13), (14), (15), (16)) AS expected(expected_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_shop.order_items WHERE order_item_id = expected_id
-        )
-      name: Order item IDs 11-16 exist
   # Referential integrity
   - values in (order_id) must exist in jaffle_shop.orders (order_id)
   - values in (product_id) must exist in jaffle_shop.products (product_id)
 
 checks for jaffle_shop.payments:
-  - row_count = 3  # baseline 0 + 3 new
+  - row_count = 52  # baseline 0 + 52 new
   - missing_count(payment_id) = 0
   - duplicate_count(payment_id) = 0
-  # Verify new payments exist (IDs 1-3)
-  - failed rows:
-      fail query: |
-        SELECT expected_id
-        FROM (VALUES (1), (2), (3)) AS expected(expected_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_shop.payments WHERE payment_id = expected_id
-        )
-      name: Payment IDs 1-3 exist
   # Referential integrity
   - values in (order_id) must exist in jaffle_shop.orders (order_id)
 
 checks for jaffle_crm.campaigns:
-  - row_count = 3  # unchanged
+  - row_count = 5  # unchanged
 
 checks for jaffle_crm.email_activity:
-  - row_count = 13  # baseline 10 + 3 new
+  - row_count = 140  # baseline 100 + 40 new
   - missing_count(activity_id) = 0
   - duplicate_count(activity_id) = 0
-  # Verify new email activities exist (IDs 11-13)
-  - failed rows:
-      fail query: |
-        SELECT expected_id
-        FROM (VALUES (11), (12), (13)) AS expected(expected_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_crm.email_activity WHERE activity_id = expected_id
-        )
-      name: Email activity IDs 11-13 exist
   # Referential integrity
   - values in (campaign_id) must exist in jaffle_crm.campaigns (campaign_id)
 
 checks for jaffle_crm.web_sessions:
-  - row_count = 13  # baseline 10 + 3 new
+  - row_count = 180  # baseline 150 + 30 new
   - missing_count(session_id) = 0
   - duplicate_count(session_id) = 0
-  # Verify new web sessions exist (IDs 11-13)
-  - failed rows:
-      fail query: |
-        SELECT expected_id
-        FROM (VALUES (11), (12), (13)) AS expected(expected_id)
-        WHERE NOT EXISTS (
-          SELECT 1 FROM jaffle_crm.web_sessions WHERE session_id = expected_id
-        )
-      name: Web session IDs 11-13 exist

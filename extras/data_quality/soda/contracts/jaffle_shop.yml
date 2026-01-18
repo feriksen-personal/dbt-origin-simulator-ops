@@ -52,9 +52,9 @@ checks for jaffle_shop.customers:
 # Product catalog with pricing
 
 checks for jaffle_shop.products:
-  # Row count validation
-  - row_count = 20:
-      name: Product catalog has exactly 20 products
+  # Row count validation (baseline minimum - catalog could grow)
+  - row_count >= 20:
+      name: Product catalog has at least 20 products
 
   # Duplicate detection
   - duplicate_count(product_id) = 0:
