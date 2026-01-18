@@ -6,7 +6,7 @@ sources:
       E-commerce and order management system with transactional data.
       Managed by dbt-azure-demo-source-ops package.
     database: jaffle_shop
-    schema: main  # DuckDB uses 'main', Azure SQL uses 'dbo'
+    schema: erp  # Schema name for jaffle_shop tables
 
     tables:
       - name: customers
@@ -28,6 +28,8 @@ sources:
 
           - name: email
             description: Customer's email address
+            tests:
+              - not_null
 
           - name: created_at
             description: When customer record was created
@@ -35,9 +37,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When customer record was last modified
-            tests:
-              - not_null
+            description: When customer record was last modified (NULL if never updated)
 
           - name: deleted_at
             description: Soft delete timestamp (NULL = active, non-NULL = deleted)
@@ -75,9 +75,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When product record was last modified
-            tests:
-              - not_null
+            description: When product record was last modified (NULL if never updated)
 
           - name: deleted_at
             description: Soft delete timestamp (NULL = active, non-NULL = discontinued)
@@ -171,9 +169,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When order item was last modified
-            tests:
-              - not_null
+            description: When order item was last modified (NULL if never updated, typically immutable)
 
           - name: deleted_at
             description: Soft delete timestamp (rarely used, line items typically immutable)
@@ -219,9 +215,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When payment record was last modified
-            tests:
-              - not_null
+            description: When payment record was last modified (NULL if never updated, typically append-only)
 
           - name: deleted_at
             description: Soft delete timestamp (rarely used)
@@ -235,7 +229,7 @@ sources:
       Marketing and CRM system with campaign and engagement tracking data.
       Managed by dbt-azure-demo-source-ops package.
     database: jaffle_crm
-    schema: main  # DuckDB uses 'main', Azure SQL uses 'dbo'
+    schema: crm  # Schema name for jaffle_crm tables
 
     tables:
       - name: campaigns
@@ -269,9 +263,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When campaign record was last modified
-            tests:
-              - not_null
+            description: When campaign record was last modified (NULL if never updated)
 
           - name: deleted_at
             description: Soft delete timestamp (NULL = active, non-NULL = archived)
@@ -313,9 +305,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When event record was last modified (rarely changes, append-only)
-            tests:
-              - not_null
+            description: When event record was last modified (NULL if never updated, typically append-only)
 
           - name: deleted_at
             description: Soft delete timestamp (rarely used, events are immutable)
@@ -353,9 +343,7 @@ sources:
               - not_null
 
           - name: updated_at
-            description: When session record was last modified (could update if session extends)
-            tests:
-              - not_null
+            description: When session record was last modified (NULL if never updated, could update if session extends)
 
           - name: deleted_at
             description: Soft delete timestamp (rarely used)
