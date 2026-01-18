@@ -22,15 +22,15 @@
       {# Skip empty statements #}
       {% set stmt = stmt.strip() %}
       {% if stmt %}
-        {# Remove SQL comments (lines starting with --) #}
+        {# Remove SQL comments (lines starting with --) and blank lines #}
         {% set lines = [] %}
         {% for line in stmt.split('\n') %}
           {% set line_stripped = line.strip() %}
           {% if line_stripped and not line_stripped.startswith('--') %}
-            {% do lines.append(line) %}
+            {% do lines.append(line_stripped) %}
           {% endif %}
         {% endfor %}
-        {% set trimmed = '\n'.join(lines).strip() %}
+        {% set trimmed = ' '.join(lines).strip() %}
         {% if trimmed %}
           {% do run_query(trimmed) %}
         {% endif %}

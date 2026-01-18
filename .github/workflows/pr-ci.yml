@@ -408,15 +408,15 @@ jobs:
           # Post comment to PR
           gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/databricks_comment.md
 
-      - name: Cleanup CI catalog (optional)
-        if: always() && vars.DATABRICKS_CLEANUP_CI == 'true'
+      - name: Cleanup CI catalog
+        if: success()
         env:
           DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
           DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
         run: |
-          echo "=== Cleaning up CI catalog ==="
+          echo "=== Cleaning up CI catalog (tests passed) ==="
           pip install databricks-sql-connector
 
           python << 'PYTHON_SCRIPT'
