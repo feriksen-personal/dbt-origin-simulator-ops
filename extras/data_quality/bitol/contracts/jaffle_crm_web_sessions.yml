@@ -1,0 +1,148 @@
+dataContractSpecification: 0.9.2
+id: jaffle_crm_web_sessions
+info:
+  title: Jaffle CRM Web Sessions
+  version: 1.0.0
+  description: |
+    Web session events from the jaffle_crm marketing system.
+
+    **Deterministic Evolution:**
+    - Baseline state: 150 web sessions (IDs 1-150)
+    - Day 1 delta: +30 web sessions (IDs 151-180)
+    - Day 2 delta: +28 web sessions (IDs 181-208)
+    - Day 3 delta: +32 web sessions (IDs 209-240)
+
+    **Patterns:**
+    - Append-only event stream (immutable sessions)
+    - Tracks customer browsing activity
+    - Session duration and page views captured
+    - No updates or soft deletes
+    - Foreign key to customers
+  owner: Marketing System Team
+  contact:
+    name: Data Platform Team
+    email: data-platform@example.com
+
+servers:
+  duckdb:
+    type: duckdb
+    location: data/demo_source.duckdb
+    schema: jaffle_crm
+    table: web_sessions
+  databricks:
+    type: databricks
+    host: ${DATABRICKS_SERVER_HOSTNAME}
+    catalog: ${DATABRICKS_CATALOG}
+    schema: crm
+    table: web_sessions
+
+models:
+  web_sessions:
+    description: Web session event stream
+    type: table
+    fields:
+      session_id:
+        type: integer
+        required: true
+        unique: true
+        primary: true
+        description: Unique web session identifier
+
+      customer_id:
+        type: integer
+        required: false
+        description: Customer associated with session (can be NULL for anonymous sessions)
+
+      session_start:
+        type: timestamp
+        required: true
+        description: Session start timestamp
+
+      session_end:
+        type: timestamp
+        required: false
+        description: Session end timestamp (can be NULL for active sessions)
+
+      page_views:
+        type: integer
+        required: true
+        description: Number of pages viewed in session
+        minValue: 1
+        example: 5
+
+      created_at:
+        type: timestamp
+        required: true
+        description: Record creation timestamp (when session was recorded)
+
+      updated_at:
+        type: timestamp
+        required: true
+        description: Record last update timestamp (could update if session extends)
+
+      deleted_at:
+        type: timestamp
+        required: false
+        description: Soft delete timestamp (rarely used)
+
+quality:
+  type: SodaCL
+  specification: |
+    checks for web_sessions:
+      # Row count validation (append-only, never decreases)
+      - row_count >= 150
+
+      # Primary key validation
+      - missing_count(session_id) = 0
+      - duplicate_count(session_id) = 0
+
+      # Required fields
+      - missing_count(session_start) = 0
+      - missing_count(page_views) = 0
+      - missing_count(created_at) = 0
+      - missing_count(updated_at) = 0
+
+      # Business rule validation
+      - min(page_views) >= 1
+
+      # Session end should be after session start (when not NULL)
+      - invalid_count(session_end) = 0:
+          valid query: |
+            SELECT session_id
+            FROM web_sessions
+            WHERE session_end IS NOT NULL
+              AND session_end < session_start
+
+      # No soft deletes (append-only)
+      - missing_count(deleted_at) = 10
+
+      # Validate integer type for page_views
+      - schema:
+          fail:
+            when wrong column type:
+              page_views: integer
+
+examples:
+  - type: csv
+    model: web_sessions
+    data: |
+      session_id,customer_id,session_start,session_end,page_views,created_at,updated_at,deleted_at
+      1,1,2024-01-15 08:00:00,2024-01-15 08:15:00,5,2024-01-15 08:15:00,2024-01-15 08:15:00,
+      2,2,2024-01-15 09:00:00,2024-01-15 09:30:00,8,2024-01-15 09:30:00,2024-01-15 09:30:00,
+      3,3,2024-01-15 10:00:00,2024-01-15 10:10:00,3,2024-01-15 10:10:00,2024-01-15 10:10:00,
+      4,4,2024-01-15 11:00:00,2024-01-15 11:45:00,12,2024-01-15 11:45:00,2024-01-15 11:45:00,
+      5,5,2024-01-15 12:00:00,2024-01-15 12:20:00,6,2024-01-15 12:20:00,2024-01-15 12:20:00,
+      6,1,2024-01-15 13:00:00,2024-01-15 13:05:00,2,2024-01-15 13:05:00,2024-01-15 13:05:00,
+      7,2,2024-01-15 14:00:00,2024-01-15 14:25:00,7,2024-01-15 14:25:00,2024-01-15 14:25:00,
+      8,3,2024-01-15 15:00:00,2024-01-15 15:15:00,4,2024-01-15 15:15:00,2024-01-15 15:15:00,
+      9,4,2024-01-15 16:00:00,2024-01-15 16:40:00,10,2024-01-15 16:40:00,2024-01-15 16:40:00,
+      10,5,2024-01-15 17:00:00,2024-01-15 17:10:00,3,2024-01-15 17:10:00,2024-01-15 17:10:00,
+
+tags:
+  - source-system
+  - crm
+  - jaffle-crm
+  - web-sessions
+  - deterministic
+  - append-only
+  - event-stream

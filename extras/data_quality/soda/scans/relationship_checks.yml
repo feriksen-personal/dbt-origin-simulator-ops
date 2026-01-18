@@ -1,0 +1,70 @@
+# Soda Scan: Referential Integrity Validation
+#
+# Validates foreign key relationships across all tables at any state.
+# These checks should pass regardless of whether you're at baseline or
+# after applying deltas.
+#
+# Usage:
+#   soda scan -d demo_source -c configuration.yml relationship_checks.yml
+
+# jaffle_shop referential integrity
+checks for jaffle_shop.customers:
+  - invalid_count(email) = 0:
+      valid format: email
+  - missing_count(created_at) = 0
+  - missing_count(updated_at) = 0
+  # updated_at should always be >= created_at
+  - failed rows:
+      fail query: |
+        SELECT customer_id
+        FROM jaffle_shop.customers
+        WHERE updated_at < created_at
+      name: updated_at >= created_at
+
+checks for jaffle_shop.products:
+  - failed rows:
+      fail condition: price < 0
+      name: All product prices are non-negative
+
+checks for jaffle_shop.orders:
+  - values in (customer_id) must exist in jaffle_shop.customers (customer_id):
+      name: Orders reference valid customers
+  - invalid_count(status) = 0:
+      valid values: ['pending', 'shipped', 'completed', 'cancelled']
+  - missing_count(created_at) = 0
+  - missing_count(updated_at) = 0
+  # Soft delete validation - no active orders should reference soft-deleted customers
+  - failed rows:
+      fail query: |
+        SELECT o.order_id
+        FROM jaffle_shop.orders o
+        INNER JOIN jaffle_shop.customers c ON o.customer_id = c.customer_id
+        WHERE o.deleted_at IS NULL
+          AND c.deleted_at IS NOT NULL
+      name: Active orders don't reference soft-deleted customers
+
+checks for jaffle_shop.order_items:
+  - values in (order_id) must exist in jaffle_shop.orders (order_id):
+      name: Order items reference valid orders
+  - values in (product_id) must exist in jaffle_shop.products (product_id):
+      name: Order items reference valid products
+
+checks for jaffle_shop.payments:
+  - values in (order_id) must exist in jaffle_shop.orders (order_id):
+      name: Payments reference valid orders
+
+# jaffle_crm referential integrity
+checks for jaffle_crm.campaigns:
+  - missing_count(created_at) = 0
+  - missing_count(updated_at) = 0
+  # Campaign end_date should be >= start_date
+  - failed rows:
+      fail query: |
+        SELECT campaign_id
+        FROM jaffle_crm.campaigns
+        WHERE end_date IS NOT NULL AND end_date < start_date
+      name: Campaign end_date >= start_date when present
+
+checks for jaffle_crm.email_activity:
+  - values in (campaign_id) must exist in jaffle_crm.campaigns (campaign_id):
+      name: Email activity references valid campaigns

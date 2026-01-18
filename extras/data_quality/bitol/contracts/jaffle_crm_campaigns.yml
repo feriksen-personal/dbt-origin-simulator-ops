@@ -1,0 +1,114 @@
+dataContractSpecification: 0.9.2
+id: jaffle_crm_campaigns
+info:
+  title: Jaffle CRM Campaigns
+  version: 1.0.0
+  description: |
+    Marketing campaign definitions from the jaffle_crm system.
+
+    **Deterministic Evolution:**
+    - Baseline state: 5 campaigns (IDs 1-5)
+    - Day 1 delta: No changes
+    - Day 2 delta: No changes
+    - Day 3 delta: No changes
+
+    **Patterns:**
+    - Static master data - no inserts after baseline
+    - Updates to budget, dates possible
+  owner: Demo Team
+  contact:
+    name: dbt-origin-simulator-ops
+    url: https://github.com/feriksen-personal/dbt-origin-simulator-ops
+
+servers:
+  duckdb:
+    type: duckdb
+    location: data/demo_source.duckdb
+    schema: jaffle_crm
+  databricks:
+    type: databricks
+    host: ${DATABRICKS_SERVER_HOSTNAME}
+    catalog: ${DATABRICKS_CATALOG}
+    schema: crm
+    http_path: ${DATABRICKS_HTTP_PATH}
+
+models:
+  campaigns:
+    description: Marketing campaigns table
+    type: table
+    fields:
+      campaign_id:
+        type: integer
+        required: true
+        primary: true
+        description: Unique campaign identifier
+        example: "1"
+
+      campaign_name:
+        type: varchar
+        required: false
+        description: Marketing campaign name
+        example: "Spring Sale 2024"
+        maxLength: 100
+
+      start_date:
+        type: date
+        required: false
+        description: Campaign start date
+        example: "2024-03-01"
+
+      end_date:
+        type: date
+        required: false
+        description: Campaign end date
+        example: "2024-03-31"
+
+      budget:
+        type: decimal
+        required: false
+        description: Campaign budget amount
+        example: "5000.00"
+        precision: 10
+        scale: 2
+
+      created_at:
+        type: timestamp
+        required: true
+        description: Record creation timestamp
+        example: "2024-01-01T00:00:00Z"
+
+      updated_at:
+        type: timestamp
+        required: true
+        description: Record last update timestamp
+        example: "2024-01-01T00:00:00Z"
+
+      deleted_at:
+        type: timestamp
+        required: false
+        description: Soft delete timestamp (NULL = active, non-NULL = archived)
+        example: null
+
+quality:
+  type: SodaCL
+  specification: |
+    checks for campaigns:
+      # Baseline state
+      # Row count validation (static catalog, could grow)
+      - row_count >= 5
+      - missing_count(campaign_id) = 0
+      - duplicate_count(campaign_id) = 0
+      # Data quality
+      - query: |
+          SELECT COUNT(*) as invalid_count
+          FROM campaigns
+          WHERE end_date < start_date
+      - invalid_count = 0
+      - invalid_count(budget) = 0:
+          valid min: 0
+
+tags:
+  - demo
+  - deterministic
+  - crm
+  - master-data

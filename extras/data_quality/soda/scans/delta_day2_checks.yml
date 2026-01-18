@@ -1,0 +1,63 @@
+# Soda Scan: Day 2 Delta Validation (Integration Test)
+#
+# Validates that demo_apply_delta --args '{day: 2}' applied changes correctly.
+# This is a deterministic integration test with exact row counts.
+#
+# Expected changes from Day 1:
+# - jaffle_shop.customers: +22 rows (IDs 126-147)
+# - jaffle_shop.products: no row count change (price updates only)
+# - jaffle_shop.orders: +55 rows (IDs 561-615)
+# - jaffle_shop.order_items: +84 rows (IDs 1304-1387)
+# - jaffle_shop.payments: +44 rows (IDs 53-96)
+# - jaffle_crm.campaigns: no changes
+# - jaffle_crm.email_activity: +38 rows (IDs 141-178)
+# - jaffle_crm.web_sessions: +28 rows (IDs 181-208)
+#
+# Usage:
+#   # After running: dbt run-operation demo_apply_delta --args '{day: 2}'
+#   soda scan -d demo_source -c configuration.yml delta_day2_checks.yml
+
+checks for jaffle_shop.customers:
+  - row_count = 147  # Day 1 (125) + 22 new
+  - missing_count(customer_id) = 0
+  - duplicate_count(customer_id) = 0
+
+checks for jaffle_shop.products:
+  - row_count = 20  # unchanged (only price updates)
+
+checks for jaffle_shop.orders:
+  - row_count = 615  # Day 1 (560) + 55 new
+  - missing_count(order_id) = 0
+  - duplicate_count(order_id) = 0
+  # Referential integrity still valid
+  - values in (customer_id) must exist in jaffle_shop.customers (customer_id)
+
+checks for jaffle_shop.order_items:
+  - row_count = 1387  # Day 1 (1303) + 84 new
+  - missing_count(order_item_id) = 0
+  - duplicate_count(order_item_id) = 0
+  # Referential integrity
+  - values in (order_id) must exist in jaffle_shop.orders (order_id)
+  - values in (product_id) must exist in jaffle_shop.products (product_id)
+
+checks for jaffle_shop.payments:
+  - row_count = 96  # Day 1 (52) + 44 new
+  - missing_count(payment_id) = 0
+  - duplicate_count(payment_id) = 0
+  # Referential integrity
+  - values in (order_id) must exist in jaffle_shop.orders (order_id)
+
+checks for jaffle_crm.campaigns:
+  - row_count = 5  # unchanged
+
+checks for jaffle_crm.email_activity:
+  - row_count = 178  # Day 1 (140) + 38 new
+  - missing_count(activity_id) = 0
+  - duplicate_count(activity_id) = 0
+  # Referential integrity
+  - values in (campaign_id) must exist in jaffle_crm.campaigns (campaign_id)
+
+checks for jaffle_crm.web_sessions:
+  - row_count = 208  # Day 1 (180) + 28 new
+  - missing_count(session_id) = 0
+  - duplicate_count(session_id) = 0

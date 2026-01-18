@@ -24,12 +24,16 @@ This folder contains optional files that users can copy into their own projects 
 
 ### Data Quality
 
-- **[Soda Core Contracts](soda/)** - Data quality checks for all tables
-  - Schema validation
-  - Foreign key integrity checks
-  - SLA/freshness monitoring aligned with delta days
-  - Soft delete validation
-  - Configuration for all 3 platforms
+- **[Soda Core](data_quality/soda/)** - Data quality contracts, scans, and configuration
+  - **Contracts**: Schema validation, integrity checks, business rules
+  - **Scans**: Example scans for baseline, delta validation, and relationships
+  - **Configuration**: Multi-platform setup (DuckDB, Databricks, Azure SQL)
+
+- **[Bitol ODCS Contracts](data_quality/bitol/)** - Industry-standard data contracts
+  - **Open Data Contract Standard** (ODCS) compliant
+  - **datacontract-cli** compatible for validation and code generation
+  - Platform-agnostic contract definitions with quality checks
+  - Leverages deterministic data for assertive validation
 
 ### Developer Tools
 
@@ -97,43 +101,60 @@ dbt run-operation demo_load_baseline --profile demo_source --target motherduck
 ```bash
 # Install Soda Core for your platform
 pip install soda-core-duckdb              # For DuckDB/MotherDuck
+pip install soda-core-databricks          # For Databricks
 pip install soda-core-sqlserver           # For Azure SQL
 
-# Copy configuration file (or customize inline)
-cp extras/soda/configuration.yml soda/configuration.yml
+# Copy configuration file
+cp extras/data_quality/soda/configuration.yml soda/configuration.yml
 
-# Edit configuration.yml:
-# - For DuckDB: Uncomment the DuckDB section, set path to your .duckdb file
-# - For MotherDuck: Uncomment MotherDuck section, set MOTHERDUCK_TOKEN env var
-# - For Azure SQL: Uncomment Azure SQL section, set environment variables
+# Edit configuration.yml - choose your platform and set connection details
 
-# Run data quality checks after loading baseline
+# Run contracts (schema validation, business rules, integrity checks)
 dbt run-operation demo_load_baseline --profile demo_source
-soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
-soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+soda scan -d demo_source -c soda/configuration.yml extras/data_quality/soda/contracts/jaffle_shop.yml
+soda scan -d demo_source -c soda/configuration.yml extras/data_quality/soda/contracts/jaffle_crm.yml
 
-# Run checks after applying deltas to verify data evolution
+# Run scans (deterministic validation)
+# Baseline state validation
+soda scan -d demo_source -c soda/configuration.yml extras/data_quality/soda/scans/baseline_checks.yml
+
+# Apply delta and validate
 dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
-soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+soda scan -d demo_source -c soda/configuration.yml extras/data_quality/soda/scans/delta_day1_checks.yml
 
-# What gets validated:
-# - Schema: Column presence, data types, nullability
-# - Foreign keys: All relationships between tables
-# - Business rules: Positive quantities, valid prices, logical sequences
-# - SLA/Freshness: Data is within expected time windows (60 days)
-# - Soft deletes: Most records active, valid deleted_at when present
-# - Duplicates: Primary keys are unique
-
-# For Azure SQL, scan each database separately:
-# 1. Set configuration.yml to database: jaffle_shop, schema: erp
-#    soda scan -d demo_source -c configuration.yml contracts/jaffle_shop.yml
-#
-# 2. Set configuration.yml to database: jaffle_crm, schema: crm
-#    soda scan -d demo_source -c configuration.yml contracts/jaffle_crm.yml
+# Relationship integrity checks (works at any state)
+soda scan -d demo_source -c soda/configuration.yml extras/data_quality/soda/scans/relationship_checks.yml
 
 # Optional: Connect to Soda Cloud for dashboards and alerts
 # - Sign up at https://cloud.soda.io
 # - Add soda_cloud section to configuration.yml with API keys
+```
+
+### 3b. Bitol ODCS Contracts
+
+```bash
+# Install datacontract-cli
+pip install datacontract-cli
+
+# Validate contracts against actual data
+dbt run-operation demo_load_baseline --profile demo_source
+
+# Test baseline state
+datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
+datacontract test extras/data_quality/bitol/contracts/jaffle_shop_orders.yml
+datacontract test extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml
+
+# Generate artifacts from contracts
+# dbt source definitions
+datacontract export extras/data_quality/bitol/contracts/jaffle_shop_customers.yml --format dbt
+
+# SQL DDL
+datacontract export extras/data_quality/bitol/contracts/jaffle_shop_orders.yml --format sql
+
+# HTML documentation
+datacontract export extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml --format html > contracts.html
+
+# See bitol/README.md for complete tooling guide
 ```
 
 ### 4. VS Code Tasks

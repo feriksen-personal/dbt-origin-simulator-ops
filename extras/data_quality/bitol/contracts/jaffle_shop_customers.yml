@@ -1,0 +1,111 @@
+dataContractSpecification: 0.9.2
+id: jaffle_shop_customers
+info:
+  title: Jaffle Shop Customers
+  version: 1.0.0
+  description: |
+    Customer master data from the jaffle_shop ERP system.
+
+    **Deterministic Evolution:**
+    - Baseline state: 100 customers (IDs 1-100)
+    - Day 1 delta: +25 customers (IDs 101-125)
+    - Day 2 delta: +22 customers (IDs 126-147)
+    - Day 3 delta: +28 customers (IDs 148-175)
+
+    **Patterns:**
+    - Soft deletes (deleted_at column) - row count never decreases
+    - Email addresses must be unique and valid format
+    - Append-only growth pattern
+  owner: Demo Team
+  contact:
+    name: dbt-origin-simulator-ops
+    url: https://github.com/feriksen-personal/dbt-origin-simulator-ops
+
+servers:
+  duckdb:
+    type: duckdb
+    location: data/demo_source.duckdb
+    schema: jaffle_shop
+  databricks:
+    type: databricks
+    host: ${DATABRICKS_SERVER_HOSTNAME}
+    catalog: ${DATABRICKS_CATALOG}
+    schema: erp
+    http_path: ${DATABRICKS_HTTP_PATH}
+
+models:
+  customers:
+    description: Customer master data table
+    type: table
+    fields:
+      customer_id:
+        type: integer
+        required: true
+        primary: true
+        description: Unique customer identifier
+        example: "1"
+
+      first_name:
+        type: varchar
+        required: false
+        description: Customer first name
+        example: "Alice"
+        maxLength: 50
+
+      last_name:
+        type: varchar
+        required: false
+        description: Customer last name
+        example: "Anderson"
+        maxLength: 50
+
+      email:
+        type: varchar
+        required: false
+        description: Customer email address
+        example: "alice@example.com"
+        maxLength: 100
+        pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+      created_at:
+        type: timestamp
+        required: true
+        description: Record creation timestamp
+        example: "2024-01-01T00:00:00Z"
+
+      updated_at:
+        type: timestamp
+        required: true
+        description: Record last update timestamp
+        example: "2024-01-01T00:00:00Z"
+
+      deleted_at:
+        type: timestamp
+        required: false
+        description: Soft delete timestamp (NULL = active, non-NULL = deleted)
+        example: null
+
+quality:
+  type: SodaCL
+  specification: |
+    checks for customers:
+      # Row count validation (soft deletes - never decreases)
+      - row_count >= 100
+      - missing_count(customer_id) = 0
+      - duplicate_count(customer_id) = 0
+      - missing_count(created_at) = 0
+      - missing_count(updated_at) = 0
+      # Data quality
+      - invalid_count(email) = 0:
+          valid format: email
+      - query: |
+          SELECT COUNT(*) as invalid_count
+          FROM customers
+          WHERE updated_at < created_at
+      - invalid_count = 0
+
+tags:
+  - demo
+  - deterministic
+  - erp
+  - master-data

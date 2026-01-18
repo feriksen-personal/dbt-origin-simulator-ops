@@ -1,0 +1,54 @@
+# Soda Scan: Baseline State Validation
+#
+# Validates that demo_load_baseline operation created the correct
+# deterministic baseline state (Day 0).
+#
+# Usage:
+#   soda scan -d demo_source -c configuration.yml baseline_checks.yml
+
+checks for jaffle_shop.customers:
+  - row_count = 100
+  - missing_count(customer_id) = 0
+  - duplicate_count(customer_id) = 0
+  - missing_count(email) = 0
+
+checks for jaffle_shop.products:
+  - row_count = 20
+  - missing_count(product_id) = 0
+  - duplicate_count(product_id) = 0
+
+checks for jaffle_shop.orders:
+  - row_count = 500
+  - missing_count(order_id) = 0
+  - duplicate_count(order_id) = 0
+  # Referential integrity
+  - values in (customer_id) must exist in jaffle_shop.customers (customer_id)
+
+checks for jaffle_shop.order_items:
+  - row_count = 1200
+  - missing_count(order_item_id) = 0
+  - duplicate_count(order_item_id) = 0
+  # Referential integrity
+  - values in (order_id) must exist in jaffle_shop.orders (order_id)
+  - values in (product_id) must exist in jaffle_shop.products (product_id)
+
+checks for jaffle_shop.payments:
+  # Payments table is empty at baseline (populated by deltas)
+  - row_count = 0
+
+checks for jaffle_crm.campaigns:
+  - row_count = 5
+  - missing_count(campaign_id) = 0
+  - duplicate_count(campaign_id) = 0
+
+checks for jaffle_crm.email_activity:
+  - row_count = 100
+  - missing_count(activity_id) = 0
+  - duplicate_count(activity_id) = 0
+  # Referential integrity
+  - values in (campaign_id) must exist in jaffle_crm.campaigns (campaign_id)
+
+checks for jaffle_crm.web_sessions:
+  - row_count = 150
+  - missing_count(session_id) = 0
+  - duplicate_count(session_id) = 0

@@ -1,0 +1,153 @@
+dataContractSpecification: 0.9.2
+id: jaffle_crm_email_activity
+info:
+  title: Jaffle CRM Email Activity
+  version: 1.0.0
+  description: |
+    Email engagement events from the jaffle_crm marketing system.
+
+    **Deterministic Evolution:**
+    - Baseline state: 100 email activities (IDs 1-100)
+    - Day 1 delta: +40 email activities (IDs 101-140)
+    - Day 2 delta: +38 email activities (IDs 141-178)
+    - Day 3 delta: +45 email activities (IDs 179-223)
+
+    **Patterns:**
+    - Append-only event stream (immutable events)
+    - Tracks email sent, opened, clicked
+    - Foreign keys to customers and campaigns
+    - No updates or soft deletes
+    - Created_at = sent_date for consistency
+  owner: Marketing System Team
+  contact:
+    name: Data Platform Team
+    email: data-platform@example.com
+
+servers:
+  duckdb:
+    type: duckdb
+    location: data/demo_source.duckdb
+    schema: jaffle_crm
+    table: email_activity
+  databricks:
+    type: databricks
+    host: ${DATABRICKS_SERVER_HOSTNAME}
+    catalog: ${DATABRICKS_CATALOG}
+    schema: crm
+    table: email_activity
+
+models:
+  email_activity:
+    description: Email interaction event stream
+    type: table
+    fields:
+      activity_id:
+        type: integer
+        required: true
+        unique: true
+        primary: true
+        description: Unique email activity identifier
+
+      customer_id:
+        type: integer
+        required: false
+        description: Customer who received the email (can be NULL for non-customers)
+
+      campaign_id:
+        type: integer
+        required: true
+        description: Foreign key to campaigns table
+        references: campaigns.campaign_id
+
+      sent_date:
+        type: timestamp
+        required: true
+        description: Email sent timestamp
+
+      opened:
+        type: boolean
+        required: true
+        description: Whether email was opened
+        example: true
+
+      clicked:
+        type: boolean
+        required: true
+        description: Whether any link was clicked
+        example: false
+
+      created_at:
+        type: timestamp
+        required: true
+        description: Record creation timestamp (when event was recorded)
+
+      updated_at:
+        type: timestamp
+        required: true
+        description: Record last update timestamp (rarely changes for append-only)
+
+      deleted_at:
+        type: timestamp
+        required: false
+        description: Soft delete timestamp (rarely used for immutable events)
+
+quality:
+  type: SodaCL
+  specification: |
+    checks for email_activity:
+      # Row count validation (append-only, never decreases)
+      - row_count >= 100
+
+      # Primary key validation
+      - missing_count(activity_id) = 0
+      - duplicate_count(activity_id) = 0
+
+      # Required fields
+      - missing_count(campaign_id) = 0
+      - missing_count(sent_date) = 0
+      - missing_count(opened) = 0
+      - missing_count(clicked) = 0
+      - missing_count(created_at) = 0
+      - missing_count(updated_at) = 0
+
+      # Business rule: if clicked, must be opened
+      - invalid_count(clicked) = 0:
+          valid query: |
+            SELECT activity_id
+            FROM email_activity
+            WHERE clicked = TRUE AND opened = FALSE
+
+      # No soft deletes (append-only)
+      - missing_count(deleted_at) = 10
+
+      # Validate boolean types
+      - schema:
+          fail:
+            when wrong column type:
+              opened: boolean
+              clicked: boolean
+
+examples:
+  - type: csv
+    model: email_activity
+    data: |
+      activity_id,customer_id,campaign_id,sent_date,opened,clicked,created_at,updated_at,deleted_at
+      1,1,1,2024-01-15 08:00:00,1,0,2024-01-15 08:00:00,2024-01-15 08:00:00,
+      2,2,1,2024-01-15 08:05:00,1,1,2024-01-15 08:05:00,2024-01-15 08:05:00,
+      3,3,1,2024-01-15 08:10:00,0,0,2024-01-15 08:10:00,2024-01-15 08:10:00,
+      4,4,2,2024-01-15 09:00:00,1,0,2024-01-15 09:00:00,2024-01-15 09:00:00,
+      5,5,2,2024-01-15 09:05:00,0,0,2024-01-15 09:05:00,2024-01-15 09:05:00,
+      6,1,2,2024-01-15 09:10:00,1,1,2024-01-15 09:10:00,2024-01-15 09:10:00,
+      7,2,3,2024-01-15 10:00:00,1,0,2024-01-15 10:00:00,2024-01-15 10:00:00,
+      8,3,3,2024-01-15 10:05:00,0,0,2024-01-15 10:05:00,2024-01-15 10:05:00,
+      9,4,3,2024-01-15 10:10:00,1,1,2024-01-15 10:10:00,2024-01-15 10:10:00,
+      10,5,3,2024-01-15 10:15:00,1,0,2024-01-15 10:15:00,2024-01-15 10:15:00,
+
+tags:
+  - source-system
+  - crm
+  - jaffle-crm
+  - email-activity
+  - deterministic
+  - append-only
+  - event-stream

@@ -1,0 +1,517 @@
+name: Validate Data Quality (Soda + ODCS)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'extras/data_quality/**'
+      - 'macros/**'
+      - 'data/**'
+      - '.github/workflows/validate-data-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'extras/data_quality/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  validate-duckdb:
+    name: Validate Data Quality (DuckDB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install dbt-core dbt-duckdb soda-core-duckdb datacontract-cli
+
+      - name: Set up dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<EOF
+          demo_source:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'data/demo_source.duckdb'
+          EOF
+
+      - name: Install dbt dependencies
+        run: dbt deps --profile demo_source
+
+      # ========== BASELINE STATE ==========
+      - name: Load baseline data
+        run: dbt run-operation demo_load_baseline --profile demo_source
+
+      - name: ODCS Contract - jaffle_shop tables (baseline)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_products.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_orders.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_order_items.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_payments.yml
+
+      - name: ODCS Contract - jaffle_crm tables (baseline)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_email_activity.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_web_sessions.yml
+
+      - name: Soda Contract - jaffle_shop.yml (baseline)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Soda Contract - jaffle_crm.yml (baseline)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Soda Scan - baseline_checks.yml
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/baseline_checks.yml
+
+      - name: Soda Scan - relationship_checks.yml (baseline)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Comment on PR - Baseline validations complete
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Baseline State Validated**\n\n' +
+                    '**ODCS Contracts** (8): All passed\n' +
+                    '**Soda Contracts** (2): All passed\n' +
+                    '**Soda Scans** (2): All passed\n\n' +
+                    '_Row counts: customers=100, products=20, orders=500, order_items=1200, payments=0_'
+            })
+
+      # ========== DAY 1 STATE ==========
+      - name: Apply Day 1 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source"
+
+      - name: ODCS Contract - jaffle_shop tables (day 1)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_products.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_orders.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_order_items.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_payments.yml
+
+      - name: ODCS Contract - jaffle_crm tables (day 1)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_email_activity.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_web_sessions.yml
+
+      - name: Soda Contract - jaffle_shop.yml (day 1)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Soda Contract - jaffle_crm.yml (day 1)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Soda Scan - delta_day1_checks.yml
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day1_checks.yml
+
+      - name: Soda Scan - relationship_checks.yml (day 1)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Comment on PR - Day 1 validations complete
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Day 1 Delta Validated**\n\n' +
+                    '**ODCS Contracts** (8): All passed\n' +
+                    '**Soda Contracts** (2): All passed\n' +
+                    '**Soda Scans** (2): All passed\n\n' +
+                    '_Row counts: customers=125 (+25), orders=560 (+60), order_items=1303 (+103), payments=52 (+52)_'
+            })
+
+      # ========== DAY 2 STATE ==========
+      - name: Apply Day 2 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source"
+
+      - name: ODCS Contract - jaffle_shop tables (day 2)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_products.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_orders.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_order_items.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_payments.yml
+
+      - name: ODCS Contract - jaffle_crm tables (day 2)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_email_activity.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_web_sessions.yml
+
+      - name: Soda Contract - jaffle_shop.yml (day 2)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Soda Contract - jaffle_crm.yml (day 2)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Soda Scan - delta_day2_checks.yml
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day2_checks.yml
+
+      - name: Soda Scan - relationship_checks.yml (day 2)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Comment on PR - Day 2 validations complete
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Day 2 Delta Validated**\n\n' +
+                    '**ODCS Contracts** (8): All passed\n' +
+                    '**Soda Contracts** (2): All passed\n' +
+                    '**Soda Scans** (2): All passed\n\n' +
+                    '_Row counts: customers=147 (+22), orders=615 (+55), order_items=1387 (+84), payments=96 (+44)_'
+            })
+
+      # ========== DAY 3 STATE ==========
+      - name: Apply Day 3 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source"
+
+      - name: ODCS Contract - jaffle_shop tables (day 3)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_products.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_orders.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_order_items.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_shop_payments.yml
+
+      - name: ODCS Contract - jaffle_crm tables (day 3)
+        run: |
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_email_activity.yml
+          datacontract test extras/data_quality/bitol/contracts/jaffle_crm_web_sessions.yml
+
+      - name: Soda Contract - jaffle_shop.yml (day 3)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Soda Contract - jaffle_crm.yml (day 3)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Soda Scan - delta_day3_checks.yml
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day3_checks.yml
+
+      - name: Soda Scan - relationship_checks.yml (day 3)
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Comment on PR - Day 3 validations complete
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Day 3 Delta Validated**\n\n' +
+                    '**ODCS Contracts** (8): All passed\n' +
+                    '**Soda Contracts** (2): All passed\n' +
+                    '**Soda Scans** (2): All passed\n\n' +
+                    '_Row counts: customers=175 (+28), orders=680 (+65), order_items=1502 (+115), payments=154 (+58)_\n\n' +
+                    '---\n\n' +
+                    '🎉 **All Data Quality Validations Complete!**\n\n' +
+                    '**Total Checks**: 48 (4 states × 12 checks per state)\n' +
+                    '**Success Rate**: 100%\n\n' +
+                    'Both **ODCS** and **Soda** contracts validated successfully across all data evolution states.'
+            })
+
+      # ========== DOCUMENTATION ==========
+      - name: Generate ODCS contract documentation
+        if: always()
+        run: |
+          mkdir -p contract-docs
+
+          # Generate HTML documentation for each contract
+          datacontract export extras/data_quality/bitol/contracts/jaffle_shop_customers.yml \
+            --format html > contract-docs/jaffle_shop_customers.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_shop_products.yml \
+            --format html > contract-docs/jaffle_shop_products.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_shop_orders.yml \
+            --format html > contract-docs/jaffle_shop_orders.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_shop_order_items.yml \
+            --format html > contract-docs/jaffle_shop_order_items.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_shop_payments.yml \
+            --format html > contract-docs/jaffle_shop_payments.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_crm_campaigns.yml \
+            --format html > contract-docs/jaffle_crm_campaigns.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_crm_email_activity.yml \
+            --format html > contract-docs/jaffle_crm_email_activity.html
+
+          datacontract export extras/data_quality/bitol/contracts/jaffle_crm_web_sessions.yml \
+            --format html > contract-docs/jaffle_crm_web_sessions.html
+
+      - name: Upload ODCS contract documentation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odcs-contract-docs
+          path: contract-docs/
+          retention-days: 30
+
+  validate-soda-databricks:
+    name: Validate Soda Contracts & Scans (Databricks)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # Only run on manual dispatch or main branch to avoid using Databricks resources on every PR
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-databricks
+        run: pip install dbt-core dbt-databricks
+
+      - name: Install Soda Core
+        run: pip install soda-core-databricks
+
+      - name: Set up environment variables
+        env:
+          DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CATALOG: ${{ secrets.DATABRICKS_CATALOG }}
+        run: |
+          echo "DATABRICKS_SERVER_HOSTNAME=${DATABRICKS_SERVER_HOSTNAME}" >> $GITHUB_ENV
+          echo "DATABRICKS_HTTP_PATH=${DATABRICKS_HTTP_PATH}" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=${DATABRICKS_TOKEN}" >> $GITHUB_ENV
+          echo "DATABRICKS_CATALOG=${DATABRICKS_CATALOG}" >> $GITHUB_ENV
+
+      - name: Install dbt dependencies
+        run: dbt deps --profile demo_source
+
+      - name: Test Databricks connection
+        run: dbt debug --profile demo_source --target databricks
+
+      - name: Load baseline data
+        run: dbt run-operation demo_load_baseline --profile demo_source --target databricks
+
+      - name: Validate Soda contracts - jaffle_shop
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Validate Soda contracts - jaffle_crm
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Validate Soda scan - baseline checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/baseline_checks.yml
+
+      - name: Apply Day 1 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source --target databricks"
+
+      - name: Validate Soda scan - Day 1 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day1_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 1
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 2 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source --target databricks"
+
+      - name: Validate Soda scan - Day 2 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day2_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 2
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 3 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source --target databricks"
+
+      - name: Validate Soda scan - Day 3 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day3_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 3
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Tag validated tables in Databricks
+        if: success()
+        run: |
+          # Tag tables with soda:validated (ODCS tagging will be added once contracts are fixed)
+          python3 -c "
+          from databricks import sql
+          import os
+
+          with sql.connect(
+            server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+            http_path=os.environ['DATABRICKS_HTTP_PATH'],
+            access_token=os.environ['DATABRICKS_TOKEN']
+          ) as connection:
+            with connection.cursor() as cursor:
+              # Tag jaffle_shop tables
+              for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'validated')\")
+
+              # Tag jaffle_crm tables
+              for table in ['campaigns', 'email_activity', 'web_sessions']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'validated')\")
+          "
+
+      - name: Tag failed tables in Databricks
+        if: failure()
+        run: |
+          # Tag tables with soda:invalid if validation failed (ODCS tagging will be added once contracts are fixed)
+          python3 -c "
+          from databricks import sql
+          import os
+
+          with sql.connect(
+            server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+            http_path=os.environ['DATABRICKS_HTTP_PATH'],
+            access_token=os.environ['DATABRICKS_TOKEN']
+          ) as connection:
+            with connection.cursor() as cursor:
+              # Tag jaffle_shop tables
+              for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'invalid')\")
+
+              # Tag jaffle_crm tables
+              for table in ['campaigns', 'email_activity', 'web_sessions']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'invalid')\")
+          "
+
+      - name: Cleanup - Reset to baseline
+        if: always()
+        run: dbt run-operation demo_reset --profile demo_source --target databricks
+
+  summary:
+    name: Data Quality Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-duckdb]
+    if: always()
+
+    steps:
+      - name: Check validation results
+        run: |
+          echo "## Data Quality Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Data Quality (DuckDB) | ${{ needs.validate-duckdb.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.validate-duckdb.result }}" == "success" ]]; then
+            echo "✅ All data quality validations passed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Validated Flow" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "For each state (baseline, day 1, day 2, day 3):" >> $GITHUB_STEP_SUMMARY
+            echo "1. **ODCS Contracts** - Generic quality patterns validated" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Soda Contracts** - Generic quality patterns validated" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Soda Scans** - Deterministic integration tests validated" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Total validations**: 4 states × (8 ODCS + 2 Soda contracts + 2 Soda scans) = 48 checks" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          else
+            echo "❌ Data quality validations failed. Review the logs above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
