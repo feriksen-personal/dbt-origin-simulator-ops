@@ -14,53 +14,81 @@
 
 ## Use Cases
 
-### 1. Fully Local Development (DuckDB)
+### 1. Local Development (DuckDB)
 
-**Zero cloud costs, instant setup, full dbt development workflow:**
+**Zero cloud costs, instant setup, complete isolation:**
 
-- DuckDB sources (managed by this package) + DuckDB target
+- Fully local source databases with no external dependencies
 - Complete dbt development environment in seconds
-- No Azure account or credentials needed
-- Perfect for learning, testing, CI/CD
+- Perfect for learning, testing, offline development
+- Ideal for CI/CD pipelines
 
-### 2. Demo/POC Environments (Azure SQL)
+### 2. Collaborative Development (MotherDuck)
 
-**Test CDC and change tracking patterns:**
+**Cloud-native DuckDB with team access:**
+
+- Shared source databases across your team
+- Free tier available (no credit card required)
+- Same DuckDB experience, cloud-hosted
+- Perfect for distributed teams and remote demos
+
+### 3. Cloud Demos & POCs (Azure SQL)
+
+**Enterprise database patterns with CDC:**
 
 - Azure SQL sources with change tracking enabled
 - Demonstrate incremental loads, SCD Type 2, CDC workflows
 - Infrastructure provisioned via [dbt-origin-simulator-infra](https://github.com/feriksen-personal/dbt-origin-simulator-infra)
 - **Note:** For demo/POC purposes only, not production
 
+### 4. Lakehouse Workflows (Databricks)
+
+**Unity Catalog and Delta Lake patterns:**
+
+- Databricks SQL Warehouse sources
+- Test lakehouse ingestion patterns and Lakeflow Connect
+- Practice Unity Catalog governance workflows
+- **Status:** Coming soon (Issue #59)
+
 ---
 
 ## Why This Package?
 
-When developing data pipelines, you need realistic source databases that you can initialize, evolve over time, and reset instantly. This package acts as a **control plane for managing stable, versioned source system emulations** across multiple platforms (DuckDB, Azure SQL, MotherDuck) without maintaining complex seeding scripts or manually recreating databases.
+When developing data pipelines, you need realistic source databases that you can initialize, evolve over time, and reset instantly. This package acts as a **control plane for managing stable, versioned source system emulations** across multiple platforms (DuckDB, MotherDuck, Azure SQL, Databricks) without maintaining complex seeding scripts or manually recreating databases.
 
-**Unlike traditional source databases** (AdventureWorks, Willibald) which provide static datasets for learning SQL and data modeling, this package focuses on **data engineering patterns**: incremental loads, CDC, change tracking, SCD Type 2, and pipeline orchestration. The four operations (`load_baseline`, `apply_delta`, `reset`, `status`) let you simulate realistic source system evolution in a controlled, reproducible way—perfect for learning Lakeflow Connect, testing delta architectures, or developing robust ingestion patterns.
+**Unlike traditional databases** (AdventureWorks, Willibald) which provide static datasets for learning SQL and data modeling, this package focuses on **data engineering infrastructure patterns**: incremental loads, CDC, change tracking, SCD Type 2, and pipeline orchestration. The four operations (`load_baseline`, `apply_delta`, `reset`, `status`) let you simulate realistic source system evolution in a controlled, reproducible way—perfect for:
 
-While built with dbt operations, the managed source systems can be used by **any data pipeline tool or workflow** - Spark jobs, Pandas scripts, SQL queries, or even standalone applications that need consistent test data.
+- **Testing pipeline orchestration** - Lakeflow Connect, Databricks workflows, Airflow DAGs
+- **Developing ingestion patterns** - Incremental loads, CDC detection, change tracking
+- **Learning data engineering** - How source systems evolve, not just querying static data
+- **CI/CD testing** - Reproducible source state for automated tests
+- **Workshops and training** - Consistent, resettable demo environments
+
+While built with dbt operations for convenience, the managed source databases can be used by **any data pipeline tool or workflow** - Spark jobs, Python scripts, SQL queries, Fivetran, or standalone applications that need consistent, evolving test data.
 
 **Key Benefits:**
 
 - ✅ **Zero Configuration** - Works out of the box with sensible defaults
-- 🔄 **Reproducible** - Reset to baseline instantly for consistent demos
-- 📊 **Realistic Data** - 100 customers, 500+ orders, proper foreign key relationships
+- 🔄 **Reproducible** - Reset to baseline instantly for consistent state
+- 📊 **Realistic Data** - Two source systems (ERP + CRM) with proper relationships
 - 🎯 **Four Simple Operations** - `load_baseline`, `apply_delta`, `reset`, `status`
-- 💰 **Cost Effective** - DuckDB option = zero cloud costs
-- 📈 **Production Patterns** - CDC, SCD Type 2, soft deletes included
+- 🌐 **Multi-Platform** - DuckDB, MotherDuck, Azure SQL, Databricks (coming soon)
+- 💰 **Cost Effective** - Free tier options for all platforms
+- 📈 **Production Patterns** - CDC, SCD Type 2, soft deletes, incremental loads
+- 🔧 **Tool Agnostic** - Use with dbt, Spark, Python, Fivetran, or any data tool
 
-Perfect for dbt demos, training workshops, development environments, and CI/CD testing. See the [wiki](https://github.com/feriksen-personal/dbt-origin-simulator-ops/wiki) for detailed use cases and patterns.
+See the [wiki](https://github.com/feriksen-personal/dbt-origin-simulator-ops/wiki) for detailed use cases and patterns.
 
 ---
 
 ## Supported Platforms
 
-| Platform     | Use Case                   | Status               |
-|--------------|----------------------------|----------------------|
-| **DuckDB**   | Local development, CI/CD   | ✅ Fully supported   |
-| **Azure SQL** | Cloud demos, CDC patterns | ⚠️ In development    |
+| Platform        | Use Case                          | Free Tier | Status              |
+|-----------------|-----------------------------------|-----------|---------------------|
+| **DuckDB**      | Local development, CI/CD          | ✅ Free   | ✅ Fully supported  |
+| **MotherDuck**  | Cloud collaboration, remote demos | ✅ Free   | ✅ Fully supported  |
+| **Azure SQL**   | CDC patterns, change tracking     | ✅ Free   | ⚠️ In development   |
+| **Databricks**  | Unity Catalog, Delta Lake         | ✅ Free   | 🔜 Planned (#59)    |
 
 ---
 
@@ -103,11 +131,16 @@ That's it! 🎉 **[See all operations →](https://github.com/feriksen-personal/
 ### Prerequisites
 
 - **dbt Core** >= 1.10.0
-- **Adapter** (choose one):
-  - **dbt-duckdb** >= 1.10.0 for local development
-  - **dbt-sqlserver** >= 1.10.0 for Azure SQL demos
+- **Adapter** (choose one or more):
+  - **dbt-duckdb** >= 1.10.0 for DuckDB and MotherDuck
+  - **dbt-sqlserver** >= 1.10.0 for Azure SQL
+  - **dbt-databricks** >= 1.10.0 for Databricks (coming soon)
 
-Optional: Azure SQL databases provisioned via [dbt-origin-simulator-infra](https://github.com/feriksen-personal/dbt-origin-simulator-infra)
+**Optional:**
+
+- Azure SQL databases via [dbt-origin-simulator-infra](https://github.com/feriksen-personal/dbt-origin-simulator-infra)
+- [MotherDuck account](https://motherduck.com) (free tier available)
+- [Databricks workspace](https://databricks.com/try-databricks) (community edition available)
 
 ### Install Package
 
@@ -133,10 +166,29 @@ demo_source:
   outputs:
     dev:
       type: duckdb
-      path: 'demo_source.duckdb'
+      path: 'data/demo_source.duckdb'
 ```
 
-**Azure SQL (demo/POC):**
+**MotherDuck (cloud):**
+
+```yaml
+# profiles.yml
+demo_source:
+  target: motherduck
+  outputs:
+    motherduck:
+      type: duckdb
+      path: 'md:demo_source'
+      token: "{{ env_var('MOTHERDUCK_TOKEN') }}"
+```
+
+Get your token at [motherduck.com/settings/tokens](https://motherduck.com/settings/tokens):
+
+```bash
+export MOTHERDUCK_TOKEN=your-token-here
+```
+
+**Azure SQL (cloud):**
 
 ```yaml
 # profiles.yml
@@ -149,6 +201,8 @@ demo_source:
       database: master
       user: "{{ env_var('DEMO_SQL_USER') }}"
       password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
+      encrypt: true
+      trust_cert: false
 ```
 
 Set environment variables:
@@ -204,8 +258,16 @@ dbt run-operation demo_reset --profile demo_source
 ```
 dbt-origin-simulator-ops/
 ├── macros/              # Four operations: load_baseline, apply_delta, reset, status
-├── data/duckdb/         # DuckDB SQL files (baseline, deltas, utilities)
-└── data/azure/          # Azure SQL files (to be implemented)
+├── data/
+│   ├── duckdb/         # DuckDB/MotherDuck SQL files (baseline, deltas, utilities)
+│   ├── azure/          # Azure SQL files (in development)
+│   └── databricks/     # Databricks SQL files (planned)
+├── extras/              # Optional templates for your project
+│   ├── dbt/            # sources.yml, profiles.yml examples
+│   ├── soda/           # Data quality contracts
+│   ├── vscode/         # VS Code tasks for Command Palette
+│   └── cicd/           # GitHub Actions workflow examples
+└── scripts/             # Development and testing scripts
 ```
 
 ---
@@ -215,10 +277,12 @@ dbt-origin-simulator-ops/
 ```yaml
 # dbt_project.yml (optional overrides)
 vars:
-  demo_source_ops:
+  origin_simulator_ops:
     shop_db: 'jaffle_shop'  # default
     crm_db: 'jaffle_crm'    # default
 ```
+
+**Note:** For MotherDuck, databases are created automatically. For Azure SQL, databases must be provisioned via the [infrastructure repo](https://github.com/feriksen-personal/dbt-origin-simulator-infra).
 
 For detailed documentation, see the [project wiki](https://github.com/feriksen-personal/dbt-origin-simulator-ops/wiki)
 
