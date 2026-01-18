@@ -483,6 +483,211 @@ jobs:
         if: always()
         run: dbt run-operation origin_reset --profile ingestion_simulator --target databricks
 
+  validate-soda-sqlserver:
+    name: Validate Soda Contracts & Scans (Azure SQL)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # Only run on manual dispatch or main branch to avoid using Azure SQL resources on every PR
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ODBC Driver 18 for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Install dbt-sqlserver
+        run: pip install dbt-core dbt-sqlserver
+
+      - name: Install Soda Core
+        run: pip install soda-core-sqlserver
+
+      - name: Set up environment variables
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          echo "SQL_SERVER=${SQL_SERVER}" >> $GITHUB_ENV
+          echo "SQL_USER=${SQL_USER}" >> $GITHUB_ENV
+          echo "SQL_PASSWORD=${SQL_PASSWORD}" >> $GITHUB_ENV
+
+      - name: Create dbt profile
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          ingestion_simulator:
+            target: azure
+            outputs:
+              azure:
+                type: sqlserver
+                server: ${SQL_SERVER}.database.windows.net
+                port: 1433
+                database: master
+                schema: dbo
+                authentication: sql
+                user: ${SQL_USER}
+                password: ${SQL_PASSWORD}
+                driver: "ODBC Driver 18 for SQL Server"
+                encrypt: true
+                trust_cert: false
+                threads: 4
+          EOF
+
+      - name: Create Soda configuration for Azure SQL
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          cat > /tmp/soda_sqlserver_jaffle_shop.yml << EOF
+          data_source ingestion_simulator:
+            type: sqlserver
+            host: ${SQL_SERVER}.database.windows.net
+            port: 1433
+            username: ${SQL_USER}
+            password: ${SQL_PASSWORD}
+            database: jaffle_shop
+            schema: dbo
+            driver: ODBC Driver 18 for SQL Server
+            encrypt: true
+            trust_server_certificate: false
+          EOF
+
+          cat > /tmp/soda_sqlserver_jaffle_crm.yml << EOF
+          data_source ingestion_simulator:
+            type: sqlserver
+            host: ${SQL_SERVER}.database.windows.net
+            port: 1433
+            username: ${SQL_USER}
+            password: ${SQL_PASSWORD}
+            database: jaffle_crm
+            schema: dbo
+            driver: ODBC Driver 18 for SQL Server
+            encrypt: true
+            trust_server_certificate: false
+          EOF
+
+      - name: Install dbt dependencies
+        run: dbt deps --profile ingestion_simulator
+
+      - name: Test Azure SQL connection
+        run: dbt debug --profile ingestion_simulator --target azure
+
+      - name: Load baseline data
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator --target azure
+
+      - name: Validate Soda contracts - jaffle_shop
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_shop.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Validate Soda contracts - jaffle_crm
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_crm.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Apply Day 1 delta
+        run: "dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator --target azure"
+
+      - name: Validate Soda contracts after Day 1 - jaffle_shop
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_shop.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Validate Soda contracts after Day 1 - jaffle_crm
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_crm.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Apply Day 2 delta
+        run: "dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator --target azure"
+
+      - name: Validate Soda contracts after Day 2 - jaffle_shop
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_shop.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Validate Soda contracts after Day 2 - jaffle_crm
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_crm.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Apply Day 3 delta
+        run: "dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator --target azure"
+
+      - name: Validate Soda contracts after Day 3 - jaffle_shop
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_shop.yml \
+            extras/data_quality/soda/contracts/jaffle_shop.yml
+
+      - name: Validate Soda contracts after Day 3 - jaffle_crm
+        run: |
+          soda scan -d ingestion_simulator \
+            -c /tmp/soda_sqlserver_jaffle_crm.yml \
+            extras/data_quality/soda/contracts/jaffle_crm.yml
+
+      - name: Cleanup - Reset to baseline
+        if: always()
+        run: dbt run-operation origin_reset --profile ingestion_simulator --target azure
+
+      - name: Cleanup - Drop Azure SQL databases
+        if: always()
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          pip install pyodbc
+
+          python << 'PYTHON_SCRIPT'
+          import pyodbc
+          import os
+
+          server = os.environ['SQL_SERVER'] + '.database.windows.net'
+          user = os.environ['SQL_USER']
+          password = os.environ['SQL_PASSWORD']
+
+          conn_str = f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE=master;UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=no"
+
+          try:
+              conn = pyodbc.connect(conn_str)
+              conn.autocommit = True
+              cursor = conn.cursor()
+
+              for db in ['jaffle_shop', 'jaffle_crm']:
+                  try:
+                      cursor.execute(f"DROP DATABASE IF EXISTS [{db}]")
+                      print(f"✓ Dropped database: {db}")
+                  except Exception as e:
+                      print(f"⚠ Could not drop {db}: {e}")
+
+              cursor.close()
+              conn.close()
+          except Exception as e:
+              print(f"⚠ Cleanup warning: {e}")
+          PYTHON_SCRIPT
+
   summary:
     name: Data Quality Validation Summary
     runs-on: ubuntu-latest

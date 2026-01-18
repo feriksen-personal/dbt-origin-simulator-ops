@@ -1,0 +1,27 @@
+# Soda Core Configuration for Azure SQL - jaffle_shop database
+#
+# This configuration is used for CI/CD validation of the jaffle_shop database on Azure SQL.
+# For jaffle_crm, use configuration-sqlserver-jaffle_crm.yml
+#
+# Usage:
+#   soda scan -d ingestion_simulator -c extras/data_quality/soda/configuration-sqlserver-jaffle_shop.yml extras/data_quality/soda/contracts/jaffle_shop.yml
+#
+# Required environment variables:
+#   export SQL_SERVER=your-server-name  # Without .database.windows.net
+#   export SQL_USER=your-username
+#   export SQL_PASSWORD=your-password
+#
+# Installation:
+#   pip install soda-core-sqlserver
+
+data_source ingestion_simulator:
+  type: sqlserver
+  host: ${SQL_SERVER}.database.windows.net
+  port: 1433
+  username: ${SQL_USER}
+  password: ${SQL_PASSWORD}
+  database: jaffle_shop
+  schema: dbo
+  driver: ODBC Driver 18 for SQL Server
+  encrypt: true
+  trust_server_certificate: false

@@ -88,7 +88,7 @@ dbt run-operation origin_status --profile ingestion_simulator
 | **DuckDB** | Local development, CI/CD | ✅ Supported |
 | **MotherDuck** | Team collaboration, shared environments | ✅ Supported |
 | **Databricks** | Unity Catalog, Delta Sharing ingestion patterns | ✅ Supported |
-| **Azure SQL** | CDC-enabled sources, change tracking ingestion patterns | ⚠️ In development |
+| **Azure SQL** | CDC-enabled sources, change tracking ingestion patterns | ✅ Supported |
 
 ---
 

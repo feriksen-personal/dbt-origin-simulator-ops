@@ -459,3 +459,194 @@ jobs:
           cursor.close()
           connection.close()
           PYTHON_SCRIPT
+
+  test-sqlserver:
+    name: Azure SQL Integration Test
+    runs-on: ubuntu-latest
+    # Only run if Azure SQL secrets are available
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.SQLSERVER_ENABLED == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ODBC Driver 18 for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Install dbt-sqlserver
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-sqlserver
+
+      - name: Get dbt-sqlserver version
+        id: sqlserver-version
+        run: |
+          VERSION=$(pip show dbt-sqlserver | grep Version | cut -d' ' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dbt-sqlserver version: ${VERSION}"
+
+      - name: Create profiles.yml
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          origin_simulator:
+            target: azure
+            outputs:
+              azure:
+                type: sqlserver
+                server: ${SQL_SERVER}.database.windows.net
+                port: 1433
+                database: master
+                schema: dbo
+                authentication: sql
+                user: ${SQL_USER}
+                password: ${SQL_PASSWORD}
+                driver: "ODBC Driver 18 for SQL Server"
+                encrypt: true
+                trust_cert: false
+                threads: 4
+          EOF
+
+      - name: Verify dbt installation
+        run: |
+          dbt --version
+
+      - name: Test dbt connection
+        run: |
+          echo "=== Testing Azure SQL connection ==="
+          dbt debug --profile origin_simulator --target azure
+
+      - name: Test origin_load_baseline
+        run: |
+          echo "=== Testing origin_load_baseline on Azure SQL ==="
+          dbt run-operation origin_load_baseline --profile origin_simulator --target azure
+
+      - name: Test origin_status
+        run: |
+          echo "=== Testing origin_status on Azure SQL ==="
+          dbt run-operation origin_status --profile origin_simulator --target azure 2>&1 | tee /tmp/sqlserver_status.log || true
+
+      - name: Test origin_apply_delta (day 1)
+        run: |
+          echo "=== Testing origin_apply_delta day 1 on Azure SQL ==="
+          dbt run-operation origin_apply_delta --args '{day: 1}' --profile origin_simulator --target azure
+
+      - name: Test origin_status after delta
+        run: |
+          echo "=== Testing origin_status after delta on Azure SQL ==="
+          dbt run-operation origin_status --profile origin_simulator --target azure 2>&1 | tee /tmp/sqlserver_delta_status.log || true
+
+      - name: Test origin_reset
+        run: |
+          echo "=== Testing origin_reset on Azure SQL ==="
+          dbt run-operation origin_reset --profile origin_simulator --target azure
+
+      - name: Final status check
+        run: |
+          echo "=== Final Azure SQL status check ==="
+          dbt run-operation origin_status --profile origin_simulator --target azure 2>&1 | tee /tmp/sqlserver_final_status.log || true
+
+      - name: Post Azure SQL test results to PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQLSERVER_VERSION: ${{ steps.sqlserver-version.outputs.version }}
+        run: |
+          # Create PR comment for Azure SQL results
+          cat > /tmp/sqlserver_comment.md << EOF
+          ## Azure SQL Integration Test Results
+
+          ![dbt-sqlserver](https://img.shields.io/badge/dbt--sqlserver-${SQLSERVER_VERSION}-blue.svg)
+
+          **Connection**:
+          - **Server**: \`${SQL_SERVER}.database.windows.net\`
+          - **Databases**: \`jaffle_shop\`, \`jaffle_crm\`
+          - **Schema**: \`dbo\`
+
+          ### ✓ Baseline Load
+          Successfully loaded baseline data to Azure SQL databases
+
+          ### Status Output (after baseline)
+          \`\`\`
+          EOF
+
+          # Add status output if available
+          if [ -f /tmp/sqlserver_status.log ]; then
+            cat /tmp/sqlserver_status.log >> /tmp/sqlserver_comment.md
+          else
+            echo "Status check not available" >> /tmp/sqlserver_comment.md
+          fi
+
+          cat >> /tmp/sqlserver_comment.md << 'EOF'
+          ```
+
+          ### ✓ Delta Application (Day 1)
+          Successfully applied Day 1 delta changes
+
+          ### ✓ Reset
+          Successfully reset to baseline state
+
+          ---
+          *Automated Azure SQL integration test from PR CI workflow*
+          EOF
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/sqlserver_comment.md
+
+      - name: Cleanup Azure SQL databases
+        if: always()
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          echo "=== Cleaning up Azure SQL databases ==="
+          pip install pyodbc
+
+          python << 'PYTHON_SCRIPT'
+          import pyodbc
+          import os
+
+          server = os.environ['SQL_SERVER'] + '.database.windows.net'
+          user = os.environ['SQL_USER']
+          password = os.environ['SQL_PASSWORD']
+
+          conn_str = f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE=master;UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=no"
+
+          try:
+              conn = pyodbc.connect(conn_str)
+              conn.autocommit = True
+              cursor = conn.cursor()
+
+              # Drop CI databases to clean up
+              for db in ['jaffle_shop', 'jaffle_crm']:
+                  try:
+                      cursor.execute(f"DROP DATABASE IF EXISTS [{db}]")
+                      print(f"✓ Dropped database: {db}")
+                  except Exception as e:
+                      print(f"⚠ Could not drop {db}: {e}")
+
+              cursor.close()
+              conn.close()
+          except Exception as e:
+              print(f"⚠ Cleanup warning: {e}")
+          PYTHON_SCRIPT

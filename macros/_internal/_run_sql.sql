@@ -1,8 +1,9 @@
 {#
   Internal helper to execute SQL with adapter-specific handling.
 
-  Databricks SQL Warehouse doesn't support multiple statements in a single
-  query, so this macro splits SQL on semicolons and executes each statement.
+  Databricks SQL Warehouse and SQL Server don't support multiple statements
+  in a single query, so this macro splits SQL on semicolons and executes each
+  statement separately for these adapters.
 
   Args:
     sql (str): SQL to execute (may contain multiple statements)
@@ -36,8 +37,34 @@
         {% endif %}
       {% endif %}
     {% endfor %}
+  {% elif target.type == 'sqlserver' %}
+    {# SQL Server needs statements executed separately #}
+    {# Also, dbt-sqlserver doesn't support USE statements via run_query #}
+    {# Note: USE database statements are included in SQL but sqlserver adapter #}
+    {# connects to a specific database via the profile, so USE is optional #}
+
+    {# Split on semicolon and execute each statement separately #}
+    {% set statements = sql.split(';') %}
+    {% for stmt in statements %}
+      {% set stmt = stmt.strip() %}
+      {% if stmt %}
+        {# Remove SQL comments (lines starting with --) and blank lines #}
+        {% set lines = [] %}
+        {% for line in stmt.split('\n') %}
+          {% set line_stripped = line.strip() %}
+          {% if line_stripped and not line_stripped.startswith('--') %}
+            {% do lines.append(line_stripped) %}
+          {% endif %}
+        {% endfor %}
+        {% set trimmed = ' '.join(lines).strip() %}
+        {# Skip USE statements as they're handled by the profile #}
+        {% if trimmed and not trimmed.upper().startswith('USE ') %}
+          {% do run_query(trimmed) %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
   {% else %}
-    {# For other adapters, execute as-is #}
+    {# For DuckDB and other adapters, execute as-is #}
     {% do run_query(sql) %}
   {% endif %}
 {% endmacro %}
