@@ -163,7 +163,7 @@ jobs:
       - name: Tag validated tables in Databricks
         if: success()
         run: |
-          # Tag jaffle_shop tables as soda:validated
+          # Tag tables with both soda:validated and odcs:validated
           python3 -c "
           from databricks import sql
           import os
@@ -176,17 +176,17 @@ jobs:
             with connection.cursor() as cursor:
               # Tag jaffle_shop tables
               for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
-                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'validated')\")
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'validated', 'odcs' = 'validated')\")
 
               # Tag jaffle_crm tables
               for table in ['campaigns', 'email_activity', 'web_sessions']:
-                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'validated')\")
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'validated', 'odcs' = 'validated')\")
           "
 
       - name: Tag failed tables in Databricks
         if: failure()
         run: |
-          # Tag tables as soda:invalid if validation failed
+          # Tag tables with both soda:invalid and odcs:invalid if validation failed
           python3 -c "
           from databricks import sql
           import os
@@ -199,11 +199,11 @@ jobs:
             with connection.cursor() as cursor:
               # Tag jaffle_shop tables
               for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
-                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'invalid')\")
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'invalid', 'odcs' = 'invalid')\")
 
               # Tag jaffle_crm tables
               for table in ['campaigns', 'email_activity', 'web_sessions']:
-                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'invalid')\")
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'invalid', 'odcs' = 'invalid')\")
           "
 
       - name: Cleanup - Reset to baseline
