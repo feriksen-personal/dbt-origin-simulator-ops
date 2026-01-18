@@ -529,13 +529,77 @@ jobs:
         run: |
           dbt --version
 
+      - name: Pre-create databases
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          echo "=== Pre-creating Azure SQL databases ==="
+          pip install pyodbc
+
+          python << 'PYTHON_SCRIPT'
+          import pyodbc
+          import os
+
+          server = os.environ['SQL_SERVER'] + '.database.windows.net'
+          user = os.environ['SQL_USER']
+          password = os.environ['SQL_PASSWORD']
+
+          # Connect to master to create databases
+          conn_str = f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE=master;UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=no"
+
+          try:
+              conn = pyodbc.connect(conn_str)
+              conn.autocommit = True
+              cursor = conn.cursor()
+
+              for db in ['jaffle_shop', 'jaffle_crm']:
+                  try:
+                      cursor.execute(f"IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'{db}') CREATE DATABASE [{db}]")
+                      print(f"✓ Database {db} ready")
+                  except Exception as e:
+                      print(f"Database {db}: {e}")
+
+              cursor.close()
+              conn.close()
+              print("✓ Databases pre-created successfully")
+          except Exception as e:
+              print(f"⚠️ Could not pre-create databases: {e}")
+              print("The origin_load_baseline operation will attempt to create them.")
+          PYTHON_SCRIPT
+
+      - name: Update profile to use jaffle_shop
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          # Update profile to connect to jaffle_shop instead of master
+          cat > ~/.dbt/profiles.yml << EOF
+          origin_simulator:
+            target: azure
+            outputs:
+              azure:
+                type: sqlserver
+                server: ${SQL_SERVER}.database.windows.net
+                port: 1433
+                database: jaffle_shop
+                schema: dbo
+                authentication: sql
+                user: "${SQL_USER}"
+                password: "${SQL_PASSWORD}"
+                driver: "ODBC Driver 18 for SQL Server"
+                encrypt: true
+                trust_cert: false
+                threads: 4
+          EOF
+
       - name: Test dbt connection
         continue-on-error: true
         run: |
           echo "=== Testing Azure SQL connection ==="
-          # Note: dbt debug may fail if user doesn't have access to 'master' database
-          # The actual operations will create jaffle_shop/jaffle_crm databases
-          dbt debug --profile origin_simulator --target azure || echo "⚠️ Connection test skipped (expected if user lacks master db access)"
+          dbt debug --profile origin_simulator --target azure || echo "⚠️ Connection test failed"
 
       - name: Test origin_load_baseline
         run: |
