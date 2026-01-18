@@ -22,8 +22,8 @@
 # Uncomment this section to use DuckDB:
 data_source demo_source:
   type: duckdb
-  path: data/duckdb/demo_source.duckdb
-  schema: erp  # Default schema for jaffle_shop tables
+  path: data/demo_source.duckdb
+  schema: jaffle_shop  # Default schema (use database.schema.table for other schemas)
 
 # ============================================================================
 # MotherDuck (Cloud) - Collaborative Development
@@ -39,7 +39,7 @@ data_source demo_source:
 #   type: duckdb
 #   path: md:
 #   token: ${MOTHERDUCK_TOKEN}
-#   schema: erp  # Default schema for jaffle_shop tables
+#   schema: jaffle_shop  # Default schema (use database.schema.table for other schemas)
 
 # ============================================================================
 # Azure SQL - Production-like Cloud Demos

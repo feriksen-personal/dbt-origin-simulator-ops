@@ -160,6 +160,52 @@ jobs:
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day1_checks.yml
 
+      - name: Tag validated tables in Databricks
+        if: success()
+        run: |
+          # Tag jaffle_shop tables as soda:validated
+          python3 -c "
+          from databricks import sql
+          import os
+
+          with sql.connect(
+            server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+            http_path=os.environ['DATABRICKS_HTTP_PATH'],
+            access_token=os.environ['DATABRICKS_TOKEN']
+          ) as connection:
+            with connection.cursor() as cursor:
+              # Tag jaffle_shop tables
+              for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'validated')\")
+
+              # Tag jaffle_crm tables
+              for table in ['campaigns', 'email_activity', 'web_sessions']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'validated')\")
+          "
+
+      - name: Tag failed tables in Databricks
+        if: failure()
+        run: |
+          # Tag tables as soda:invalid if validation failed
+          python3 -c "
+          from databricks import sql
+          import os
+
+          with sql.connect(
+            server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+            http_path=os.environ['DATABRICKS_HTTP_PATH'],
+            access_token=os.environ['DATABRICKS_TOKEN']
+          ) as connection:
+            with connection.cursor() as cursor:
+              # Tag jaffle_shop tables
+              for table in ['customers', 'products', 'orders', 'order_items', 'payments']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_shop.{table} SET TAGS ('soda' = 'invalid')\")
+
+              # Tag jaffle_crm tables
+              for table in ['campaigns', 'email_activity', 'web_sessions']:
+                cursor.execute(f\"ALTER TABLE ${os.environ['DATABRICKS_CATALOG']}.jaffle_crm.{table} SET TAGS ('soda' = 'invalid')\")
+          "
+
       - name: Cleanup - Reset to baseline
         if: always()
         run: dbt run-operation demo_reset --profile demo_source --target databricks
