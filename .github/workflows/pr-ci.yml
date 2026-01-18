@@ -125,7 +125,7 @@ jobs:
           echo "✓ Core directory structure validated"
 
   test-duckdb:
-    name: 🦆 DuckDB Integration Test
+    name: DuckDB Integration Test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -232,7 +232,7 @@ jobs:
 
           # Create PR comment
           cat > /tmp/pr_comment.md << EOF
-          ## 🦆 DuckDB Integration Test Results
+          ## DuckDB Integration Test Results
 
           ![dbt-duckdb](https://img.shields.io/badge/dbt--duckdb-${DUCKDB_VERSION}-blue.svg)
 
@@ -258,7 +258,7 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/pr_comment.md
 
   test-databricks:
-    name: 🧱 Databricks Integration Test
+    name: Databricks Integration Test
     runs-on: ubuntu-latest
     # Only run if Databricks secrets are available
     if: |
@@ -392,7 +392,7 @@ jobs:
         run: |
           # Create PR comment for Databricks results
           cat > /tmp/databricks_comment.md << EOF
-          ## 🧱 Databricks Integration Test Results
+          ## Databricks Integration Test Results
 
           ![dbt-databricks](https://img.shields.io/badge/dbt--databricks-${DATABRICKS_VERSION}-blue.svg)
 
