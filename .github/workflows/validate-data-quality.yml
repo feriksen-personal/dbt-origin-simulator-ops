@@ -539,8 +539,8 @@ jobs:
                 database: master
                 schema: dbo
                 authentication: sql
-                user: ${SQL_USER}
-                password: ${SQL_PASSWORD}
+                user: "${SQL_USER}"
+                password: "${SQL_PASSWORD}"
                 driver: "ODBC Driver 18 for SQL Server"
                 encrypt: true
                 trust_cert: false
