@@ -40,33 +40,33 @@ models:
     description: Order line items linking products to orders
     type: table
     fields:
-      - name: order_item_id
+      order_item_id:
         type: integer
         required: true
         unique: true
         primary: true
         description: Unique order item identifier
 
-      - name: order_id
+      order_id:
         type: integer
         required: true
         description: Foreign key to orders table
         references: orders.order_id
 
-      - name: product_id
+      product_id:
         type: integer
         required: true
         description: Foreign key to products table
         references: products.product_id
 
-      - name: quantity
+      quantity:
         type: integer
         required: true
         description: Quantity of product ordered
         minValue: 1
         example: 2
 
-      - name: unit_price
+      unit_price:
         type: decimal
         required: true
         description: Price per unit at time of order (historical price snapshot)
@@ -75,17 +75,17 @@ models:
         minValue: 0.00
         example: "3.99"
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp (when line item was added)
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp (rarely changes for append-only)
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (rarely used for immutable line items)

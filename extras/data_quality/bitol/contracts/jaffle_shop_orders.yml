@@ -33,27 +33,27 @@ models:
     description: Customer orders table
     type: table
     fields:
-      - name: order_id
+      order_id:
         type: integer
         required: true
         primary: true
         description: Unique order identifier
         example: "1"
 
-      - name: customer_id
+      customer_id:
         type: integer
         required: false
         description: Foreign key to customers table
         example: "1"
         references: jaffle_shop.customers.customer_id
 
-      - name: order_date
+      order_date:
         type: date
         required: false
         description: Order placement date
         example: "2024-01-15"
 
-      - name: status
+      status:
         type: varchar
         required: false
         description: Order status
@@ -66,19 +66,19 @@ models:
           - delivered
           - cancelled
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (NULL = active, non-NULL = cancelled)

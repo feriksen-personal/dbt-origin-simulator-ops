@@ -41,52 +41,52 @@ models:
     description: Email interaction event stream
     type: table
     fields:
-      - name: activity_id
+      activity_id:
         type: integer
         required: true
         unique: true
         primary: true
         description: Unique email activity identifier
 
-      - name: customer_id
+      customer_id:
         type: integer
         required: false
         description: Customer who received the email (can be NULL for non-customers)
 
-      - name: campaign_id
+      campaign_id:
         type: integer
         required: true
         description: Foreign key to campaigns table
         references: campaigns.campaign_id
 
-      - name: sent_date
+      sent_date:
         type: timestamp
         required: true
         description: Email sent timestamp
 
-      - name: opened
+      opened:
         type: boolean
         required: true
         description: Whether email was opened
         example: true
 
-      - name: clicked
+      clicked:
         type: boolean
         required: true
         description: Whether any link was clicked
         example: false
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp (when event was recorded)
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp (rarely changes for append-only)
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (rarely used for immutable events)

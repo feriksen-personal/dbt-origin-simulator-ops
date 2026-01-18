@@ -41,46 +41,46 @@ models:
     description: Web session event stream
     type: table
     fields:
-      - name: session_id
+      session_id:
         type: integer
         required: true
         unique: true
         primary: true
         description: Unique web session identifier
 
-      - name: customer_id
+      customer_id:
         type: integer
         required: false
         description: Customer associated with session (can be NULL for anonymous sessions)
 
-      - name: session_start
+      session_start:
         type: timestamp
         required: true
         description: Session start timestamp
 
-      - name: session_end
+      session_end:
         type: timestamp
         required: false
         description: Session end timestamp (can be NULL for active sessions)
 
-      - name: page_views
+      page_views:
         type: integer
         required: true
         description: Number of pages viewed in session
         minValue: 1
         example: 5
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp (when session was recorded)
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp (could update if session extends)
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (rarely used)

@@ -31,28 +31,28 @@ models:
     description: Customer master data table
     type: table
     fields:
-      - name: customer_id
+      customer_id:
         type: integer
         required: true
         primary: true
         description: Unique customer identifier
         example: "1"
 
-      - name: first_name
+      first_name:
         type: varchar
         required: false
         description: Customer first name
         example: "Alice"
         maxLength: 50
 
-      - name: last_name
+      last_name:
         type: varchar
         required: false
         description: Customer last name
         example: "Anderson"
         maxLength: 50
 
-      - name: email
+      email:
         type: varchar
         required: false
         description: Customer email address
@@ -60,19 +60,19 @@ models:
         maxLength: 100
         pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (NULL = active, non-NULL = deleted)

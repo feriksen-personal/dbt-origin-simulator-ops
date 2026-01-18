@@ -39,20 +39,20 @@ models:
     description: Product catalog with pricing and categories
     type: table
     fields:
-      - name: product_id
+      product_id:
         type: integer
         required: true
         unique: true
         primary: true
         description: Unique product identifier
 
-      - name: product_name
+      product_name:
         type: varchar
         required: true
         description: Product display name
         example: "Blueberry Muffin"
 
-      - name: category
+      category:
         type: varchar
         required: false
         description: Product category
@@ -62,7 +62,7 @@ models:
           - Sandwich
         example: "Bakery"
 
-      - name: price
+      price:
         type: decimal
         required: true
         description: Current product price in USD
@@ -71,17 +71,17 @@ models:
         minValue: 0.00
         example: "3.99"
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp (changes when price updated)
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (NULL = active, non-NULL = archived)

@@ -30,33 +30,33 @@ models:
     description: Marketing campaigns table
     type: table
     fields:
-      - name: campaign_id
+      campaign_id:
         type: integer
         required: true
         primary: true
         description: Unique campaign identifier
         example: "1"
 
-      - name: campaign_name
+      campaign_name:
         type: varchar
         required: false
         description: Marketing campaign name
         example: "Spring Sale 2024"
         maxLength: 100
 
-      - name: start_date
+      start_date:
         type: date
         required: false
         description: Campaign start date
         example: "2024-03-01"
 
-      - name: end_date
+      end_date:
         type: date
         required: false
         description: Campaign end date
         example: "2024-03-31"
 
-      - name: budget
+      budget:
         type: decimal
         required: false
         description: Campaign budget amount
@@ -64,19 +64,19 @@ models:
         precision: 10
         scale: 2
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp
         example: "2024-01-01T00:00:00Z"
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (NULL = active, non-NULL = archived)

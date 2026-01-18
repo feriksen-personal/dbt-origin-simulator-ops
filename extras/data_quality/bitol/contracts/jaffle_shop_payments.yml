@@ -41,21 +41,21 @@ models:
     description: Payment records linked to orders
     type: table
     fields:
-      - name: payment_id
+      payment_id:
         type: integer
         required: true
         unique: true
         primary: true
         description: Unique payment identifier
 
-      - name: order_id
+      order_id:
         type: integer
         required: true
         unique: true
         description: Foreign key to orders table (one payment per order)
         references: orders.order_id
 
-      - name: payment_method
+      payment_method:
         type: varchar
         required: true
         description: Payment method used
@@ -65,7 +65,7 @@ models:
           - gift_card
         example: "credit_card"
 
-      - name: amount
+      amount:
         type: decimal
         required: true
         description: Payment amount in USD
@@ -74,22 +74,22 @@ models:
         minValue: 0.00
         example: "25.47"
 
-      - name: payment_date
+      payment_date:
         type: timestamp
         required: true
         description: Payment transaction timestamp
 
-      - name: created_at
+      created_at:
         type: timestamp
         required: true
         description: Record creation timestamp
 
-      - name: updated_at
+      updated_at:
         type: timestamp
         required: true
         description: Record last update timestamp (rarely changes for append-only)
 
-      - name: deleted_at
+      deleted_at:
         type: timestamp
         required: false
         description: Soft delete timestamp (rarely used for immutable payments)
