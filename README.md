@@ -6,6 +6,10 @@
 [![dbt-duckdb](https://img.shields.io/badge/dbt--duckdb-%3E%3D1.10.0-blue.svg)](https://github.com/duckdb/dbt-duckdb)
 [![dbt-sqlserver](https://img.shields.io/badge/dbt--sqlserver-%3E%3D1.10.0-blue.svg)](https://github.com/dbt-msft/dbt-sqlserver)
 
+[![DuckDB](https://img.shields.io/badge/DuckDB-FFF000?logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![MotherDuck](https://img.shields.io/badge/MotherDuck-FFF000?logo=duckdb&logoColor=black)](https://motherduck.com/)
+[![Azure SQL](https://img.shields.io/badge/Azure_SQL-CC2927?logo=microsoftsqlserver&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/database)
+
 **Control plane for managing stable, versioned source system emulations** - Four simple operations: load baseline, apply deltas, reset, and check status.
 
 **[Quick Start](#quick-copy-paste-setup)** • **[Wiki Documentation](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki)** • **[Operations Guide](https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki/Operations-Guide)**
