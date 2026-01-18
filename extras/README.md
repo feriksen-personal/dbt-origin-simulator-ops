@@ -108,8 +108,22 @@ soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/
 mkdir -p .vscode
 cp extras/vscode/tasks.json .vscode/tasks.json
 
-# Use with:
-# Cmd+Shift+P → "Tasks: Run Task" → Select operation
+# Run tasks via Command Palette:
+# Cmd+Shift+P (Mac) / Ctrl+Shift+P (Windows/Linux) → "Tasks: Run Task"
+
+# Available tasks:
+# - Demo: Load Baseline (Day 0)
+# - Demo: Check Status
+# - Demo: Apply Day 1 Changes
+# - Demo: Apply Day 2 Changes
+# - Demo: Apply Day 3 Changes
+# - Demo: Reset to Baseline
+# - Demo: Full Workflow (Baseline + All 3 Days)
+# - Demo: Verify Baseline Data
+
+# Customize for different targets:
+# Edit .vscode/tasks.json and change --profile demo_source to your profile
+# Or add --target flag: --profile demo_source --target motherduck
 ```
 
 ### 5. Makefile / justfile
