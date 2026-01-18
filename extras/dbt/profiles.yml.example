@@ -1,0 +1,128 @@
+# dbt Profiles for dbt-azure-demo-source-ops
+#
+# Copy this file to ~/.dbt/profiles.yml and customize for your environment.
+#
+# Usage:
+#   dbt run-operation demo_load_baseline --profile demo_source               # Uses default 'dev' target
+#   dbt run-operation demo_load_baseline --profile demo_source --target motherduck
+#   dbt run-operation demo_load_baseline --profile demo_source --target azure
+#
+# Documentation: https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki/Getting-Started
+
+demo_source:
+  target: dev  # Default target (change to motherduck or azure if preferred)
+
+  outputs:
+    # ========================================================================
+    # Local DuckDB - Recommended for getting started
+    # ========================================================================
+    # Use case: Local development, zero cloud costs, fastest iteration
+    # Requirements: pip install dbt-duckdb
+    # Database files: Created in the path specified below
+    dev:
+      type: duckdb
+      path: 'data/demo_source.duckdb'  # Relative or absolute path
+      threads: 4
+
+    # ========================================================================
+    # MotherDuck - Cloud collaboration
+    # ========================================================================
+    # Use case: Cloud collaboration, shared databases, Databricks Asset Bundles
+    # Requirements:
+    #   - pip install dbt-duckdb
+    #   - MotherDuck account (free tier available): https://motherduck.com
+    #   - Service token from https://motherduck.com (Settings → Service Tokens)
+    #
+    # Setup:
+    #   export MOTHERDUCK_TOKEN=your-motherduck-service-token-here
+    #
+    # Testing connection:
+    #   dbt debug --profile demo_source --target motherduck
+    motherduck:
+      type: duckdb
+      path: 'md:'  # Special path for MotherDuck - databases created automatically
+      token: "{{ env_var('MOTHERDUCK_TOKEN') }}"
+      threads: 4
+
+    # ========================================================================
+    # Azure SQL - Production-like cloud demos
+    # ========================================================================
+    # Use case: Cloud demos, CDC demonstrations, change tracking
+    # Requirements:
+    #   - pip install dbt-sqlserver
+    #   - Azure SQL database provisioned
+    #   - ODBC Driver 18 for SQL Server installed
+    #
+    # Setup environment variables:
+    #   export DEMO_SQL_SERVER=your-server-name  # Without .database.windows.net
+    #   export DEMO_SQL_USER=your-username
+    #   export DEMO_SQL_PASSWORD=your-password
+    #
+    # Testing connection:
+    #   dbt debug --profile demo_source --target azure
+    #
+    # Note: Package creates jaffle_shop and jaffle_crm databases automatically
+    azure:
+      type: sqlserver
+      server: "{{ env_var('DEMO_SQL_SERVER') }}.database.windows.net"
+      port: 1433
+      database: master  # Package creates jaffle_shop/jaffle_crm databases
+      schema: dbo
+      authentication: sql
+      user: "{{ env_var('DEMO_SQL_USER') }}"
+      password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
+      driver: "ODBC Driver 18 for SQL Server"
+      encrypt: true          # Required for Azure SQL
+      trust_cert: false      # Required for Azure SQL
+      threads: 4
+
+# ============================================================================
+# Environment Variable Setup
+# ============================================================================
+#
+# Create a .env file in your project root (add to .gitignore):
+#
+#   # MotherDuck
+#   export MOTHERDUCK_TOKEN=your-token-here
+#
+#   # Azure SQL
+#   export DEMO_SQL_SERVER=your-server-name
+#   export DEMO_SQL_USER=your-username
+#   export DEMO_SQL_PASSWORD=your-password
+#
+# Then source it before running dbt:
+#   source .env
+#   dbt run-operation demo_load_baseline --profile demo_source
+#
+# ============================================================================
+# Testing Your Configuration
+# ============================================================================
+#
+# Test each target:
+#   dbt debug --profile demo_source --target dev
+#   dbt debug --profile demo_source --target motherduck
+#   dbt debug --profile demo_source --target azure
+#
+# Expected output:
+#   Configuration:
+#     profiles.yml file [OK found and valid]
+#     dbt_project.yml file [OK found and valid]
+#   Connection test: [OK connection ok]
+#
+# ============================================================================
+# Troubleshooting
+# ============================================================================
+#
+# Issue: "Profile demo_source does not exist"
+# Solution: Ensure this file is at ~/.dbt/profiles.yml
+#
+# Issue: "Could not find profile named 'demo_source'"
+# Solution: Check YAML indentation (use spaces, not tabs)
+#
+# Issue: MotherDuck "token is required"
+# Solution: Ensure MOTHERDUCK_TOKEN environment variable is set
+#
+# Issue: Azure SQL connection timeout
+# Solution: Check firewall rules allow your IP address
+#
+# For more help: https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki/Troubleshooting

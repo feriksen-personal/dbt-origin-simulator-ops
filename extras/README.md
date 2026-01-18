@@ -71,14 +71,23 @@ cp extras/dbt/sources.yml models/staging/demo_source/sources.yml
 # Copy example to your profiles
 cp extras/dbt/profiles.yml.example ~/.dbt/profiles.yml
 
-# Edit and set your environment variables
+# Customize the file for your environment
+# - Choose your default target (dev, motherduck, or azure)
+# - Update paths/settings as needed
+
+# Set environment variables (for MotherDuck/Azure)
 export MOTHERDUCK_TOKEN=your-token
 export DEMO_SQL_SERVER=your-server
 export DEMO_SQL_USER=your-user
 export DEMO_SQL_PASSWORD=your-password
 
-# Test connection
-dbt debug --profile demo_source
+# Test each target
+dbt debug --profile demo_source --target dev         # Local DuckDB
+dbt debug --profile demo_source --target motherduck  # MotherDuck cloud
+dbt debug --profile demo_source --target azure       # Azure SQL
+
+# Use specific target with operations
+dbt run-operation demo_load_baseline --profile demo_source --target motherduck
 ```
 
 ### 3. Soda Core
