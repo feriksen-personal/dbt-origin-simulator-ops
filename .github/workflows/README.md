@@ -24,17 +24,16 @@ This directory contains GitHub Actions workflows for continuous integration and 
 
 **Trigger**: Pushes to any branch except `main`
 
-**Purpose**: Quick validation on feature branches during development
+**Purpose**: Fast validation on feature branches during development
 
 **Jobs**:
-- Validate dbt Configuration
-- Lint Package
-- Validate Package Structure
-- Test DuckDB Operations (no PR comments)
+- Validate dbt Configuration (dbt parse)
+- Lint Package (sqlfluff, YAML validation)
+- Validate Package Structure (required files/directories)
 
 **Use case**: Fast feedback loop for developers working on feature branches
 
-**Note**: Only tests DuckDB (local, fast) - assumes MotherDuck will work if DuckDB works
+**Note**: Validation-only workflow (~30 seconds). Full integration testing happens at PR time.
 
 ---
 
@@ -99,13 +98,17 @@ Optional variables:
 
 ## Workflow Summary
 
-| Event | Workflow | DuckDB | Databricks | PR Comments |
-|-------|----------|--------|------------|-------------|
-| Push to `main` | Main Branch CI | ✅ | ❌ | ✅ |
-| Push to feature branch | Feature Branch CI | ✅ | ❌ | ❌ |
-| PR to `main` | PR CI | ✅ | ⚠️* | ✅ |
+| Event | Workflow | Validation | DuckDB Tests | Databricks Tests | PR Comments |
+|-------|----------|------------|--------------|------------------|-------------|
+| Push to `main` | Main Branch CI | ✅ | ✅ | ❌ | ✅ |
+| Push to feature branch | Feature Branch CI | ✅ | ❌ | ❌ | ❌ |
+| PR to `main` | PR CI | ✅ | ✅ | ⚠️* | ✅ |
 
 \* Databricks testing in PR CI is conditional on secrets being configured
+
+**Validation**: dbt parse, linting, structure checks (~30 seconds)
+**DuckDB Tests**: Full integration testing (baseline, verify, reset, status)
+**Databricks Tests**: Full integration testing with Unity Catalog
 
 ---
 
