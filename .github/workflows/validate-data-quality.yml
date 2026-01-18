@@ -85,7 +85,37 @@ jobs:
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day1_checks.yml
 
-      - name: Validate Soda scan - relationships after delta
+      - name: Validate Soda scan - relationships after Day 1
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 2 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source"
+
+      - name: Validate Soda scan - Day 2 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day2_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 2
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 3 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source"
+
+      - name: Validate Soda scan - Day 3 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day3_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 3
         run: |
           soda scan -d demo_source \
             -c extras/data_quality/soda/configuration.yml \
@@ -159,6 +189,42 @@ jobs:
           soda scan -d demo_source \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day1_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 1
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 2 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source --target databricks"
+
+      - name: Validate Soda scan - Day 2 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day2_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 2
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
+
+      - name: Apply Day 3 delta
+        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source --target databricks"
+
+      - name: Validate Soda scan - Day 3 delta checks
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/delta_day3_checks.yml
+
+      - name: Validate Soda scan - relationships after Day 3
+        run: |
+          soda scan -d demo_source \
+            -c extras/data_quality/soda/configuration.yml \
+            extras/data_quality/soda/scans/relationship_checks.yml
 
       - name: Tag validated tables in Databricks
         if: success()
