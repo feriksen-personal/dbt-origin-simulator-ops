@@ -38,7 +38,7 @@
   {# Load jaffle_shop schema #}
   {{ origin_simulator_ops._log("→ Creating jaffle_shop tables...") }}
   {% set shop_schema_sql = origin_simulator_ops._get_sql('baseline/shop_schema') %}
-  {% do run_query(shop_schema_sql) %}
+  {% do origin_simulator_ops._run_sql(shop_schema_sql) %}
   {{ origin_simulator_ops._log("  ✓ Created jaffle_shop schema") }}
 
   {# Load jaffle_shop seed data - table by table in FK order #}
@@ -46,28 +46,28 @@
 
   {# Customers (no dependencies) #}
   {% set customers_sql = origin_simulator_ops._get_sql('baseline/shop_customers') %}
-  {% do run_query(customers_sql) %}
+  {% do origin_simulator_ops._run_sql(customers_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded customers (100 rows)") }}
 
   {# Products (no dependencies) #}
   {% set products_sql = origin_simulator_ops._get_sql('baseline/shop_products') %}
-  {% do run_query(products_sql) %}
+  {% do origin_simulator_ops._run_sql(products_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded products (20 rows)") }}
 
   {# Orders (depends on customers) #}
   {% set orders_sql = origin_simulator_ops._get_sql('baseline/shop_orders') %}
-  {% do run_query(orders_sql) %}
+  {% do origin_simulator_ops._run_sql(orders_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded orders (500 rows)") }}
 
   {# Order items (depends on orders and products) #}
   {% set order_items_sql = origin_simulator_ops._get_sql('baseline/shop_order_items') %}
-  {% do run_query(order_items_sql) %}
+  {% do origin_simulator_ops._run_sql(order_items_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded order_items (1200 rows)") }}
 
   {# Load jaffle_crm schema #}
   {{ origin_simulator_ops._log("→ Creating jaffle_crm tables...") }}
   {% set crm_schema_sql = origin_simulator_ops._get_sql('baseline/crm_schema') %}
-  {% do run_query(crm_schema_sql) %}
+  {% do origin_simulator_ops._run_sql(crm_schema_sql) %}
   {{ origin_simulator_ops._log("  ✓ Created jaffle_crm schema") }}
 
   {# Load jaffle_crm seed data - table by table in FK order #}
@@ -75,17 +75,17 @@
 
   {# Campaigns (no dependencies) #}
   {% set campaigns_sql = origin_simulator_ops._get_sql('baseline/crm_campaigns') %}
-  {% do run_query(campaigns_sql) %}
+  {% do origin_simulator_ops._run_sql(campaigns_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded campaigns (5 rows)") }}
 
   {# Email activity (depends on campaigns) #}
   {% set email_activity_sql = origin_simulator_ops._get_sql('baseline/crm_email_activity') %}
-  {% do run_query(email_activity_sql) %}
+  {% do origin_simulator_ops._run_sql(email_activity_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded email_activity (100 rows)") }}
 
   {# Web sessions (no FK dependencies) #}
   {% set web_sessions_sql = origin_simulator_ops._get_sql('baseline/crm_web_sessions') %}
-  {% do run_query(web_sessions_sql) %}
+  {% do origin_simulator_ops._run_sql(web_sessions_sql) %}
   {{ origin_simulator_ops._log("  ✓ Loaded web_sessions (150 rows)") }}
 
   {{ origin_simulator_ops._log("") }}

@@ -52,12 +52,27 @@
     dict: Row counts for each table
 #}
 {% macro _get_shop_counts(shop_db) %}
+  {# Build table references based on adapter type #}
+  {% if target.type == 'databricks' %}
+    {# Databricks: catalog.erp.table #}
+    {% set customers_ref = target.catalog ~ '.erp.customers' %}
+    {% set products_ref = target.catalog ~ '.erp.products' %}
+    {% set orders_ref = target.catalog ~ '.erp.orders' %}
+    {% set order_items_ref = target.catalog ~ '.erp.order_items' %}
+  {% else %}
+    {# DuckDB: jaffle_shop.table #}
+    {% set customers_ref = shop_db ~ '.customers' %}
+    {% set products_ref = shop_db ~ '.products' %}
+    {% set orders_ref = shop_db ~ '.orders' %}
+    {% set order_items_ref = shop_db ~ '.order_items' %}
+  {% endif %}
+
   {% set query %}
     SELECT
-      (SELECT COUNT(*) FROM {{ shop_db }}.customers) as customers,
-      (SELECT COUNT(*) FROM {{ shop_db }}.products) as products,
-      (SELECT COUNT(*) FROM {{ shop_db }}.orders) as orders,
-      (SELECT COUNT(*) FROM {{ shop_db }}.order_items) as order_items
+      (SELECT COUNT(*) FROM {{ customers_ref }}) as customers,
+      (SELECT COUNT(*) FROM {{ products_ref }}) as products,
+      (SELECT COUNT(*) FROM {{ orders_ref }}) as orders,
+      (SELECT COUNT(*) FROM {{ order_items_ref }}) as order_items
   {% endset %}
 
   {% set result = run_query(query) %}
@@ -90,11 +105,24 @@
     dict: Row counts for each table
 #}
 {% macro _get_crm_counts(crm_db) %}
+  {# Build table references based on adapter type #}
+  {% if target.type == 'databricks' %}
+    {# Databricks: catalog.crm.table #}
+    {% set campaigns_ref = target.catalog ~ '.crm.campaigns' %}
+    {% set email_activity_ref = target.catalog ~ '.crm.email_activity' %}
+    {% set web_sessions_ref = target.catalog ~ '.crm.web_sessions' %}
+  {% else %}
+    {# DuckDB: jaffle_crm.table #}
+    {% set campaigns_ref = crm_db ~ '.campaigns' %}
+    {% set email_activity_ref = crm_db ~ '.email_activity' %}
+    {% set web_sessions_ref = crm_db ~ '.web_sessions' %}
+  {% endif %}
+
   {% set query %}
     SELECT
-      (SELECT COUNT(*) FROM {{ crm_db }}.campaigns) as campaigns,
-      (SELECT COUNT(*) FROM {{ crm_db }}.email_activity) as email_activity,
-      (SELECT COUNT(*) FROM {{ crm_db }}.web_sessions) as web_sessions
+      (SELECT COUNT(*) FROM {{ campaigns_ref }}) as campaigns,
+      (SELECT COUNT(*) FROM {{ email_activity_ref }}) as email_activity,
+      (SELECT COUNT(*) FROM {{ web_sessions_ref }}) as web_sessions
   {% endset %}
 
   {% set result = run_query(query) %}

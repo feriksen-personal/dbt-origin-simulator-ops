@@ -1,0 +1,6 @@
+INSERT INTO origin_simulator_jaffle_corp.crm.campaigns (campaign_id, campaign_name, start_date, end_date, budget, created_at, updated_at, deleted_at) VALUES
+(1, 'Spring Sale 2024', CURRENT_DATE - 30, CURRENT_DATE - 0, 5000.0, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP - INTERVAL '30 days', NULL),
+(2, 'Summer Clearance', CURRENT_DATE - 25, CURRENT_DATE - -5, 7500.0, CURRENT_TIMESTAMP - INTERVAL '25 days', CURRENT_TIMESTAMP - INTERVAL '25 days', NULL),
+(3, 'Back to School', CURRENT_DATE - 20, CURRENT_DATE - -5, 3000.0, CURRENT_TIMESTAMP - INTERVAL '20 days', CURRENT_TIMESTAMP - INTERVAL '20 days', NULL),
+(4, 'Fall Promotion', CURRENT_DATE - 15, CURRENT_DATE - -5, 6000.0, CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days', NULL),
+(5, 'Holiday Special', CURRENT_DATE - 10, CURRENT_DATE - -5, 10000.0, CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '10 days', NULL);

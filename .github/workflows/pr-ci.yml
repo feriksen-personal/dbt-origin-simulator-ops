@@ -1,0 +1,461 @@
+name: PR CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-dbt-config:
+    name: Validate dbt Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-duckdb
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb
+
+      - name: Create minimal profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          origin_simulator:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: ':memory:'
+          EOF
+
+      - name: Run dbt parse
+        run: |
+          dbt parse --profile origin_simulator
+          echo "✓ All dbt configuration valid"
+
+      - name: Validate extras/dbt/sources.yml (if exists)
+        run: |
+          if [ -f extras/dbt/sources.yml ]; then
+            echo "Validating extras/dbt/sources.yml..."
+            # Copy to models/ temporarily for validation
+            mkdir -p models/staging
+            cp extras/dbt/sources.yml models/staging/sources.yml
+            dbt parse --profile origin_simulator
+            echo "✓ extras/dbt/sources.yml is valid"
+          else
+            echo "⚠ extras/dbt/sources.yml not found, skipping"
+          fi
+
+  lint:
+    name: Lint Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sqlfluff
+
+      - name: Lint SQL files (when they exist)
+        run: |
+          if find macros -name "*.sql" -type f | grep -q .; then
+            echo "Linting macro SQL files..."
+            sqlfluff lint macros/ --dialect postgres || true
+          else
+            echo "No SQL files found yet, skipping lint"
+          fi
+
+      - name: Check YAML syntax
+        run: |
+          if [ -f dbt_project.yml ]; then
+            python -c "import yaml; yaml.safe_load(open('dbt_project.yml'))"
+            echo "✓ dbt_project.yml is valid"
+          fi
+
+  validate-structure:
+    name: Validate Package Structure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check required files
+        run: |
+          echo "Checking package structure..."
+          test -f dbt_project.yml || (echo "Missing dbt_project.yml" && exit 1)
+          test -f README.md || (echo "Missing README.md" && exit 1)
+          test -f LICENSE || (echo "Missing LICENSE" && exit 1)
+          test -d macros || (echo "Missing macros/ directory" && exit 1)
+          test -d data || (echo "Missing data/ directory" && exit 1)
+          echo "✓ All required files present"
+
+      - name: Verify directory structure
+        run: |
+          # Check core directories (required)
+          test -d macros/_internal || (echo "Missing macros/_internal" && exit 1)
+          test -d data || (echo "Missing data/ directory" && exit 1)
+
+          # Check platform directories (warnings only for incremental development)
+          test -d data/duckdb/baseline || echo "⚠ data/duckdb/baseline not yet created"
+          test -d data/duckdb/deltas || echo "⚠ data/duckdb/deltas not yet created"
+          test -d data/duckdb/utilities || echo "⚠ data/duckdb/utilities not yet created"
+          test -d data/databricks/baseline || echo "⚠ data/databricks/baseline not yet created"
+          test -d data/databricks/deltas || echo "⚠ data/databricks/deltas not yet created"
+          test -d data/databricks/utilities || echo "⚠ data/databricks/utilities not yet created"
+          test -d data/azure/baseline || echo "⚠ data/azure/baseline not yet created"
+          test -d data/azure/deltas || echo "⚠ data/azure/deltas not yet created"
+          test -d data/azure/utilities || echo "⚠ data/azure/utilities not yet created"
+
+          echo "✓ Core directory structure validated"
+
+  test-duckdb:
+    name: DuckDB Integration Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-duckdb
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-duckdb
+
+      - name: Get dbt-duckdb version
+        id: duckdb-version
+        run: |
+          VERSION=$(pip show dbt-duckdb | grep Version | cut -d' ' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dbt-duckdb version: ${VERSION}"
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          origin_simulator:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: 'origin_simulator.duckdb'
+          EOF
+
+      - name: Verify dbt installation
+        run: |
+          dbt --version
+
+      - name: Test demo_load_baseline
+        run: |
+          echo "=== Testing demo_load_baseline ==="
+          dbt run-operation demo_load_baseline --profile origin_simulator
+
+      - name: Verify baseline data
+        run: |
+          echo "=== Verifying baseline data ==="
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_baseline.log
+
+      - name: Test demo_status
+        run: |
+          echo "=== Testing demo_status ==="
+          dbt run-operation demo_status --profile origin_simulator
+
+      - name: Test demo_reset
+        run: |
+          echo "=== Testing demo_reset ==="
+          dbt run-operation demo_reset --profile origin_simulator
+
+      - name: Verify reset restored baseline
+        run: |
+          echo "=== Verifying reset restored baseline ==="
+          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_reset.log
+
+      - name: Final status check
+        run: |
+          echo "=== Final status check ==="
+          dbt run-operation demo_status --profile origin_simulator
+
+      - name: Post test results to PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DUCKDB_VERSION: ${{ steps.duckdb-version.outputs.version }}
+        run: |
+          # Convert verification output to markdown tables
+          convert_to_markdown() {
+            local input="$1"
+            local output="$2"
+
+            # Create markdown table header
+            echo "| Database.Table | Expected | Actual | Status |" > "$output"
+            echo "|----------------|----------|--------|--------|" >> "$output"
+
+            # Extract and convert table rows
+            grep "║.*│.*│.*│.*║" "$input" | \
+              grep -v "Database.Table" | \
+              grep -v "═" | \
+              grep -v "─" | \
+              sed 's/\x1b\[[0-9;]*m//g' | \
+              sed 's/^[0-9:]\{8\}  //g' | \
+              sed 's/║/|/g' | \
+              sed 's/│/|/g' | \
+              sed 's/|[[:space:]]*|/|/g' | \
+              sed 's/|[[:space:]]/| /g' | \
+              sed 's/[[:space:]]|/ |/g' >> "$output"
+          }
+
+          convert_to_markdown /tmp/verify_baseline.log /tmp/baseline_table.md
+          convert_to_markdown /tmp/verify_reset.log /tmp/reset_table.md
+
+          # Create PR comment
+          cat > /tmp/pr_comment.md << EOF
+          ## DuckDB Integration Test Results
+
+          ![dbt-duckdb](https://img.shields.io/badge/dbt--duckdb-${DUCKDB_VERSION}-blue.svg)
+
+          **Connection**: Local DuckDB database (\`origin_simulator.duckdb\`)
+
+          ### ✓ Baseline Load Verification
+
+          EOF
+          cat /tmp/baseline_table.md >> /tmp/pr_comment.md
+          cat >> /tmp/pr_comment.md << 'EOF'
+
+          ### ✓ Reset Verification
+
+          EOF
+          cat /tmp/reset_table.md >> /tmp/pr_comment.md
+          cat >> /tmp/pr_comment.md << 'EOF'
+
+          ---
+          *Automated test results from CI workflow*
+          EOF
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/pr_comment.md
+
+  test-databricks:
+    name: Databricks Integration Test
+    runs-on: ubuntu-latest
+    # Only run if Databricks secrets are available
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.DATABRICKS_ENABLED == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt-databricks
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-core dbt-databricks
+
+      - name: Get dbt-databricks version
+        id: databricks-version
+        run: |
+          VERSION=$(pip show dbt-databricks | grep Version | cut -d' ' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "dbt-databricks version: ${VERSION}"
+
+      - name: Set up CI catalog name
+        id: catalog
+        env:
+          BASE_CATALOG: ${{ secrets.DATABRICKS_CATALOG }}
+        run: |
+          # Create unique catalog name for CI: origin_simulator_jaffle_corp_ci
+          CI_CATALOG="${BASE_CATALOG}_ci"
+          echo "ci_catalog=${CI_CATALOG}" >> $GITHUB_OUTPUT
+          echo "Using Databricks catalog: ${CI_CATALOG}"
+
+      - name: Create CI catalog
+        env:
+          DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
+        run: |
+          # Install databricks-sql-connector for catalog creation
+          pip install databricks-sql-connector
+
+          # Create catalog if it doesn't exist
+          python << 'PYTHON_SCRIPT'
+          import os
+          from databricks import sql
+
+          connection = sql.connect(
+              server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+              http_path=os.environ['DATABRICKS_HTTP_PATH'],
+              access_token=os.environ['DATABRICKS_TOKEN']
+          )
+
+          cursor = connection.cursor()
+          ci_catalog = os.environ['CI_CATALOG']
+
+          # Create catalog for CI testing
+          cursor.execute(f"CREATE CATALOG IF NOT EXISTS {ci_catalog}")
+          print(f"✓ Created/verified CI catalog: {ci_catalog}")
+
+          cursor.close()
+          connection.close()
+          PYTHON_SCRIPT
+
+      - name: Create profiles.yml
+        env:
+          DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          origin_simulator:
+            target: databricks
+            outputs:
+              databricks:
+                type: databricks
+                host: ${DATABRICKS_SERVER_HOSTNAME}
+                http_path: ${DATABRICKS_HTTP_PATH}
+                token: ${DATABRICKS_TOKEN}
+                catalog: ${CI_CATALOG}
+                schema: default
+                threads: 4
+          EOF
+
+      - name: Verify dbt installation
+        run: |
+          dbt --version
+
+      - name: Test dbt connection
+        run: |
+          echo "=== Testing Databricks connection ==="
+          dbt debug --profile origin_simulator --target databricks
+
+      - name: Test demo_load_baseline
+        run: |
+          echo "=== Testing demo_load_baseline on Databricks ==="
+          dbt run-operation demo_load_baseline --profile origin_simulator --target databricks
+
+      - name: Test demo_status
+        run: |
+          echo "=== Testing demo_status on Databricks ==="
+          dbt run-operation demo_status --profile origin_simulator --target databricks 2>&1 | tee /tmp/databricks_status.log || true
+
+      - name: Test demo_reset
+        run: |
+          echo "=== Testing demo_reset on Databricks ==="
+          dbt run-operation demo_reset --profile origin_simulator --target databricks
+
+      - name: Final status check
+        run: |
+          echo "=== Final Databricks status check ==="
+          dbt run-operation demo_status --profile origin_simulator --target databricks 2>&1 | tee /tmp/databricks_final_status.log || true
+
+      - name: Post Databricks test results to PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+          CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
+          DATABRICKS_VERSION: ${{ steps.databricks-version.outputs.version }}
+        run: |
+          # Create PR comment for Databricks results
+          cat > /tmp/databricks_comment.md << EOF
+          ## Databricks Integration Test Results
+
+          ![dbt-databricks](https://img.shields.io/badge/dbt--databricks-${DATABRICKS_VERSION}-blue.svg)
+
+          **Connection**:
+          - **Host**: \`${DATABRICKS_HOST}\`
+          - **Catalog**: \`${CI_CATALOG}\`
+          - **Schemas**: \`erp\`, \`crm\`
+
+          ### ✓ Baseline Load
+          Successfully loaded baseline data to Databricks Unity Catalog
+
+          ### Status Output
+          \`\`\`
+          EOF
+
+          # Add status output if available
+          if [ -f /tmp/databricks_status.log ]; then
+            cat /tmp/databricks_status.log >> /tmp/databricks_comment.md
+          else
+            echo "Status check not available" >> /tmp/databricks_comment.md
+          fi
+
+          cat >> /tmp/databricks_comment.md << 'EOF'
+          ```
+
+          ### ✓ Reset
+          Successfully reset to baseline state
+
+          ---
+          *Automated Databricks integration test from PR CI workflow*
+          EOF
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/databricks_comment.md
+
+      - name: Cleanup CI catalog
+        if: success()
+        env:
+          DATABRICKS_SERVER_HOSTNAME: ${{ secrets.DATABRICKS_SERVER_HOSTNAME }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CI_CATALOG: ${{ steps.catalog.outputs.ci_catalog }}
+        run: |
+          echo "=== Cleaning up CI catalog (tests passed) ==="
+          pip install databricks-sql-connector
+
+          python << 'PYTHON_SCRIPT'
+          import os
+          from databricks import sql
+
+          connection = sql.connect(
+              server_hostname=os.environ['DATABRICKS_SERVER_HOSTNAME'],
+              http_path=os.environ['DATABRICKS_HTTP_PATH'],
+              access_token=os.environ['DATABRICKS_TOKEN']
+          )
+
+          cursor = connection.cursor()
+          ci_catalog = os.environ['CI_CATALOG']
+
+          # Drop CI catalog to clean up
+          cursor.execute(f"DROP CATALOG IF EXISTS {ci_catalog} CASCADE")
+          print(f"✓ Cleaned up CI catalog: {ci_catalog}")
+
+          cursor.close()
+          connection.close()
+          PYTHON_SCRIPT

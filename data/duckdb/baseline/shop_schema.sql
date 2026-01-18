@@ -1,6 +1,9 @@
 -- jaffle_shop database schema
 -- E-commerce/ERP system tables
 
+-- Create jaffle_shop schema
+CREATE SCHEMA IF NOT EXISTS jaffle_shop;
+
 -- Customers table
 CREATE TABLE IF NOT EXISTS jaffle_shop.customers (
     customer_id INTEGER PRIMARY KEY,

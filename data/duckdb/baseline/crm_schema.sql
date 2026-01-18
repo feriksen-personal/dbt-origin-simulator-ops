@@ -1,6 +1,9 @@
 -- jaffle_crm database schema
 -- Marketing/CRM system tables
 
+-- Create jaffle_crm schema
+CREATE SCHEMA IF NOT EXISTS jaffle_crm;
+
 -- Campaigns table
 CREATE TABLE IF NOT EXISTS jaffle_crm.campaigns (
     campaign_id INTEGER PRIMARY KEY,

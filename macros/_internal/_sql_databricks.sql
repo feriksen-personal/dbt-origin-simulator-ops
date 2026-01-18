@@ -1,18 +1,22 @@
 {#
-  DuckDB SQL file content embedded as macros.
+  Databricks SQL file content embedded as macros.
   
-  This file contains all SQL for DuckDB.
-  Each macro returns the content of a corresponding SQL file from data/duckdb/.
+  This file contains all SQL for Databricks (Delta Lake on Unity Catalog).
+  Each macro returns the content of a corresponding SQL file from data/databricks/.
   
   Organization:
   - Baseline: Schema creation and seed data (table-specific)
   - Utilities: Truncate operations
   - Deltas: Incremental changes for Days 01, 02, 03
+  
+  Note: Unity Catalog uses 3-level namespace: catalog.schema.table
+  Schemas: erp (shop tables), crm (CRM/marketing tables)
+  Catalog: origin_simulator_jaffle_corp (user-specific)
 #}
 
 
-{%- macro _get_duckdb_baseline_crm_campaigns() -%}
-INSERT INTO jaffle_crm.campaigns (campaign_id, campaign_name, start_date, end_date, budget, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_crm_campaigns() -%}
+INSERT INTO origin_simulator_jaffle_corp.crm.campaigns (campaign_id, campaign_name, start_date, end_date, budget, created_at, updated_at, deleted_at) VALUES
 (1, 'Spring Sale 2024', CURRENT_DATE - 30, CURRENT_DATE - 0, 5000.0, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP - INTERVAL '30 days', NULL),
 (2, 'Summer Clearance', CURRENT_DATE - 25, CURRENT_DATE - -5, 7500.0, CURRENT_TIMESTAMP - INTERVAL '25 days', CURRENT_TIMESTAMP - INTERVAL '25 days', NULL),
 (3, 'Back to School', CURRENT_DATE - 20, CURRENT_DATE - -5, 3000.0, CURRENT_TIMESTAMP - INTERVAL '20 days', CURRENT_TIMESTAMP - INTERVAL '20 days', NULL),
@@ -20,8 +24,8 @@ INSERT INTO jaffle_crm.campaigns (campaign_id, campaign_name, start_date, end_da
 (5, 'Holiday Special', CURRENT_DATE - 10, CURRENT_DATE - -5, 10000.0, CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '10 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_crm_email_activity() -%}
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_crm_email_activity() -%}
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (1, 1, 1, CURRENT_TIMESTAMP - INTERVAL '1 days', FALSE, FALSE, CURRENT_TIMESTAMP - INTERVAL '1 days', CURRENT_TIMESTAMP - INTERVAL '1 days', NULL),
 (2, 2, 2, CURRENT_TIMESTAMP - INTERVAL '8 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days', NULL),
 (3, 3, 5, CURRENT_TIMESTAMP - INTERVAL '3 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '3 days', NULL),
@@ -124,59 +128,68 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (100, 100, 5, CURRENT_TIMESTAMP - INTERVAL '5 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_crm_schema() -%}
--- jaffle_crm database schema
--- Marketing/CRM system tables
+{%- macro _get_databricks_baseline_crm_schema() -%}
+-- crm schema (CRM/Marketing tables) in Databricks Unity Catalog
+-- Marketing/CRM system tables using Delta Lake format
+-- Catalog: origin_simulator_jaffle_corp | Schema: crm
 
--- Create jaffle_crm schema
-CREATE SCHEMA IF NOT EXISTS jaffle_crm;
+-- Create crm schema
+CREATE SCHEMA IF NOT EXISTS origin_simulator_jaffle_corp.crm;
+
+COMMENT ON SCHEMA origin_simulator_jaffle_corp.crm IS 'Customer Relationship Management (CRM) schema containing marketing campaign and customer engagement data. This schema includes marketing campaigns, email activity events, and web session events. Tables follow append-only event stream pattern for activity tables.';
 
 -- Campaigns table
-CREATE TABLE IF NOT EXISTS jaffle_crm.campaigns (
-    campaign_id INTEGER PRIMARY KEY,
-    campaign_name VARCHAR(100),
-    start_date DATE,
-    end_date DATE,
-    budget DECIMAL(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP  -- NULL = active, non-NULL = archived
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.crm.campaigns (
+    campaign_id INTEGER NOT NULL COMMENT 'Unique campaign identifier',
+    campaign_name VARCHAR(100) COMMENT 'Marketing campaign name',
+    start_date DATE COMMENT 'Campaign start date',
+    end_date DATE COMMENT 'Campaign end date',
+    budget DECIMAL(10,2) COMMENT 'Campaign budget amount',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (NULL = active, non-NULL = archived)',
+    CONSTRAINT pk_campaigns PRIMARY KEY (campaign_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Marketing campaigns table';
 
 -- Email activity table (append-only event stream)
-CREATE TABLE IF NOT EXISTS jaffle_crm.email_activity (
-    activity_id INTEGER PRIMARY KEY,
-    customer_id INTEGER,
-    campaign_id INTEGER,
-    sent_date TIMESTAMP,
-    opened BOOLEAN,
-    clicked BOOLEAN,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- When event was recorded
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Rarely changes (append-only)
-    deleted_at TIMESTAMP,  -- Rarely used (events are immutable)
-    FOREIGN KEY (campaign_id) REFERENCES jaffle_crm.campaigns(campaign_id)
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.crm.email_activity (
+    activity_id INTEGER NOT NULL COMMENT 'Unique email activity identifier',
+    customer_id INTEGER COMMENT 'Customer who received the email',
+    campaign_id INTEGER COMMENT 'Foreign key to campaigns table',
+    sent_date TIMESTAMP COMMENT 'Email sent timestamp',
+    opened BOOLEAN COMMENT 'Whether email was opened',
+    clicked BOOLEAN COMMENT 'Whether any link was clicked',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp (when event was recorded)',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp (rarely changes for append-only)',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (rarely used for immutable events)',
+    CONSTRAINT pk_email_activity PRIMARY KEY (activity_id) NOT ENFORCED,
+    CONSTRAINT fk_email_activity_campaign FOREIGN KEY (campaign_id) REFERENCES origin_simulator_jaffle_corp.crm.campaigns(campaign_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Email activity event stream table';
 
 -- Web sessions table (append-only event stream)
-CREATE TABLE IF NOT EXISTS jaffle_crm.web_sessions (
-    session_id INTEGER PRIMARY KEY,
-    customer_id INTEGER,
-    session_start TIMESTAMP,
-    session_end TIMESTAMP,
-    page_views INTEGER,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- When session was recorded
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Could update if session extends
-    deleted_at TIMESTAMP  -- Rarely used
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.crm.web_sessions (
+    session_id INTEGER NOT NULL COMMENT 'Unique web session identifier',
+    customer_id INTEGER COMMENT 'Customer associated with session',
+    session_start TIMESTAMP COMMENT 'Session start timestamp',
+    session_end TIMESTAMP COMMENT 'Session end timestamp',
+    page_views INTEGER COMMENT 'Number of pages viewed in session',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp (when session was recorded)',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp (could update if session extends)',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (rarely used)',
+    CONSTRAINT pk_web_sessions PRIMARY KEY (session_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Web session event stream table';
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_crm_seed() -%}
+{%- macro _get_databricks_baseline_crm_seed() -%}
 -- ============================================================================
--- jaffle_crm baseline seed data
+-- crm schema baseline seed data for Databricks
 -- ============================================================================
 
 -- Seed campaigns (5 active campaigns)
-INSERT INTO jaffle_crm.campaigns (campaign_id, campaign_name, start_date, end_date, budget, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.campaigns (campaign_id, campaign_name, start_date, end_date, budget, created_at, updated_at, deleted_at) VALUES
 (1, 'Spring Sale 2024', CURRENT_DATE - 30, CURRENT_DATE - 0, 5000.0, CURRENT_TIMESTAMP - INTERVAL '30 days', CURRENT_TIMESTAMP - INTERVAL '30 days', NULL),
 (2, 'Summer Clearance', CURRENT_DATE - 25, CURRENT_DATE - -5, 7500.0, CURRENT_TIMESTAMP - INTERVAL '25 days', CURRENT_TIMESTAMP - INTERVAL '25 days', NULL),
 (3, 'Back to School', CURRENT_DATE - 20, CURRENT_DATE - -5, 3000.0, CURRENT_TIMESTAMP - INTERVAL '20 days', CURRENT_TIMESTAMP - INTERVAL '20 days', NULL),
@@ -184,7 +197,7 @@ INSERT INTO jaffle_crm.campaigns (campaign_id, campaign_name, start_date, end_da
 (5, 'Holiday Special', CURRENT_DATE - 10, CURRENT_DATE - -5, 10000.0, CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '10 days', NULL);
 
 -- Seed email activity (100 email interactions)
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (1, 1, 1, CURRENT_TIMESTAMP - INTERVAL '1 days', FALSE, FALSE, CURRENT_TIMESTAMP - INTERVAL '1 days', CURRENT_TIMESTAMP - INTERVAL '1 days', NULL),
 (2, 2, 2, CURRENT_TIMESTAMP - INTERVAL '8 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days', NULL),
 (3, 3, 5, CURRENT_TIMESTAMP - INTERVAL '3 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '3 days', NULL),
@@ -287,7 +300,7 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (100, 100, 5, CURRENT_TIMESTAMP - INTERVAL '5 days', TRUE, TRUE, CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '5 days', NULL);
 
 -- Seed web sessions (150 sessions)
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (1, 82, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days' + INTERVAL '2 minutes', 9, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days', NULL),
 (2, 32, CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days' + INTERVAL '9 minutes', 4, CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days', NULL),
 (3, 87, CURRENT_TIMESTAMP - INTERVAL '48 days', CURRENT_TIMESTAMP - INTERVAL '48 days' + INTERVAL '35 minutes', 3, CURRENT_TIMESTAMP - INTERVAL '48 days', CURRENT_TIMESTAMP - INTERVAL '48 days', NULL),
@@ -440,8 +453,8 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (150, 61, CURRENT_TIMESTAMP - INTERVAL '51 days', CURRENT_TIMESTAMP - INTERVAL '51 days' + INTERVAL '11 minutes', 3, CURRENT_TIMESTAMP - INTERVAL '51 days', CURRENT_TIMESTAMP - INTERVAL '51 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_crm_web_sessions() -%}
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_crm_web_sessions() -%}
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (1, 82, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days' + INTERVAL '2 minutes', 9, CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '8 days', NULL),
 (2, 32, CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days' + INTERVAL '9 minutes', 4, CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days', NULL),
 (3, 87, CURRENT_TIMESTAMP - INTERVAL '48 days', CURRENT_TIMESTAMP - INTERVAL '48 days' + INTERVAL '35 minutes', 3, CURRENT_TIMESTAMP - INTERVAL '48 days', CURRENT_TIMESTAMP - INTERVAL '48 days', NULL),
@@ -594,8 +607,8 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (150, 61, CURRENT_TIMESTAMP - INTERVAL '51 days', CURRENT_TIMESTAMP - INTERVAL '51 days' + INTERVAL '11 minutes', 3, CURRENT_TIMESTAMP - INTERVAL '51 days', CURRENT_TIMESTAMP - INTERVAL '51 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_customers() -%}
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_shop_customers() -%}
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (1, 'Brian', 'Alvarez', 'brian.alvarez1@example.com', CURRENT_TIMESTAMP - INTERVAL '99 days', CURRENT_TIMESTAMP - INTERVAL '99 days', NULL),
 (2, 'Kevin', 'Baker', 'kevin.baker2@example.com', CURRENT_TIMESTAMP - INTERVAL '98 days', CURRENT_TIMESTAMP - INTERVAL '98 days', NULL),
 (3, 'Karen', 'Martin', 'karen.martin3@example.com', CURRENT_TIMESTAMP - INTERVAL '97 days', CURRENT_TIMESTAMP - INTERVAL '97 days', NULL),
@@ -698,8 +711,8 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (100, 'Donald', 'Reed', 'donald.reed100@example.com', CURRENT_TIMESTAMP - INTERVAL '0 days', CURRENT_TIMESTAMP - INTERVAL '0 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_order_items() -%}
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_shop_order_items() -%}
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1, 1, 2, 1, 29.99, CURRENT_TIMESTAMP - INTERVAL '56 days', CURRENT_TIMESTAMP - INTERVAL '56 days', NULL),
 (2, 1, 12, 2, 79.99, CURRENT_TIMESTAMP - INTERVAL '41 days', CURRENT_TIMESTAMP - INTERVAL '41 days', NULL),
 (3, 2, 14, 1, 59.99, CURRENT_TIMESTAMP - INTERVAL '66 days', CURRENT_TIMESTAMP - INTERVAL '66 days', NULL),
@@ -1902,8 +1915,8 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1200, 500, 4, 1, 399.99, CURRENT_TIMESTAMP - INTERVAL '35 days', CURRENT_TIMESTAMP - INTERVAL '35 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_orders() -%}
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_shop_orders() -%}
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (1, 82, CURRENT_DATE - 15, 'pending', CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days', NULL),
 (2, 36, CURRENT_DATE - 32, 'completed', CURRENT_TIMESTAMP - INTERVAL '32 days', CURRENT_TIMESTAMP - INTERVAL '29 days', NULL),
 (3, 14, CURRENT_DATE - 87, 'completed', CURRENT_TIMESTAMP - INTERVAL '87 days', CURRENT_TIMESTAMP - INTERVAL '84 days', NULL),
@@ -2406,8 +2419,8 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (500, 18, CURRENT_DATE - 6, 'completed', CURRENT_TIMESTAMP - INTERVAL '6 days', CURRENT_TIMESTAMP - INTERVAL '4 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_products() -%}
-INSERT INTO jaffle_shop.products (product_id, name, category, price, created_at, updated_at, deleted_at) VALUES
+{%- macro _get_databricks_baseline_shop_products() -%}
+INSERT INTO origin_simulator_jaffle_corp.erp.products (product_id, name, category, price, created_at, updated_at, deleted_at) VALUES
 (1, 'Laptop Pro', 'Electronics', 1299.99, CURRENT_TIMESTAMP - INTERVAL '70 days', CURRENT_TIMESTAMP - INTERVAL '70 days', NULL),
 (2, 'Wireless Mouse', 'Electronics', 29.99, CURRENT_TIMESTAMP - INTERVAL '73 days', CURRENT_TIMESTAMP - INTERVAL '73 days', NULL),
 (3, 'Mechanical Keyboard', 'Electronics', 89.99, CURRENT_TIMESTAMP - INTERVAL '151 days', CURRENT_TIMESTAMP - INTERVAL '151 days', NULL),
@@ -2430,82 +2443,105 @@ INSERT INTO jaffle_shop.products (product_id, name, category, price, created_at,
 (20, 'Wall Art', 'Decor', 89.99, CURRENT_TIMESTAMP - INTERVAL '54 days', CURRENT_TIMESTAMP - INTERVAL '54 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_schema() -%}
--- jaffle_shop database schema
--- E-commerce/ERP system tables
+{%- macro _get_databricks_baseline_shop_schema() -%}
+-- erp schema (shop/ERP tables) in Databricks Unity Catalog
+-- E-commerce/ERP system tables using Delta Lake format
+-- Catalog: origin_simulator_jaffle_corp | Schema: erp
 
--- Create jaffle_shop schema
-CREATE SCHEMA IF NOT EXISTS jaffle_shop;
+-- Set catalog metadata
+ALTER CATALOG origin_simulator_jaffle_corp
+SET TAGS (
+  'origin_simulator_version' = '1.0.0',
+  'purpose' = 'dbt Origin Simulator demo source system',
+  'managed_by' = 'dbt-origin-simulator-ops'
+);
+
+COMMENT ON CATALOG origin_simulator_jaffle_corp IS 'Demo source system catalog for dbt Origin Simulator. This catalog contains synthetic e-commerce and marketing data generated by the dbt-origin-simulator-ops package. It includes two schemas: erp (transactional shop data) and crm (marketing/customer engagement data). The data simulates a realistic operational database with baseline state and incremental daily changes.';
+
+-- Create erp schema
+CREATE SCHEMA IF NOT EXISTS origin_simulator_jaffle_corp.erp;
+
+COMMENT ON SCHEMA origin_simulator_jaffle_corp.erp IS 'Enterprise Resource Planning (ERP) schema containing transactional e-commerce data. This schema includes customer master data, product catalog, orders, order line items, and payment transactions. Tables use soft delete pattern with deleted_at timestamp.';
 
 -- Customers table
-CREATE TABLE IF NOT EXISTS jaffle_shop.customers (
-    customer_id INTEGER PRIMARY KEY,
-    first_name VARCHAR(50),
-    last_name VARCHAR(50),
-    email VARCHAR(100),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP  -- NULL = active, non-NULL = soft deleted
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.erp.customers (
+    customer_id INTEGER NOT NULL COMMENT 'Unique customer identifier',
+    first_name VARCHAR(50) COMMENT 'Customer first name',
+    last_name VARCHAR(50) COMMENT 'Customer last name',
+    email VARCHAR(100) COMMENT 'Customer email address',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (NULL = active, non-NULL = deleted)',
+    CONSTRAINT pk_customers PRIMARY KEY (customer_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Customer master data table';
 
 -- Products table
-CREATE TABLE IF NOT EXISTS jaffle_shop.products (
-    product_id INTEGER PRIMARY KEY,
-    name VARCHAR(100),
-    category VARCHAR(50),
-    price DECIMAL(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP  -- NULL = active, non-NULL = discontinued
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.erp.products (
+    product_id INTEGER NOT NULL COMMENT 'Unique product identifier',
+    name VARCHAR(100) COMMENT 'Product name',
+    category VARCHAR(50) COMMENT 'Product category',
+    price DECIMAL(10,2) COMMENT 'Product unit price',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (NULL = active, non-NULL = discontinued)',
+    CONSTRAINT pk_products PRIMARY KEY (product_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Product catalog table';
 
 -- Orders table
-CREATE TABLE IF NOT EXISTS jaffle_shop.orders (
-    order_id INTEGER PRIMARY KEY,
-    customer_id INTEGER,
-    order_date DATE,
-    status VARCHAR(20),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,  -- NULL = active, non-NULL = cancelled/deleted
-    FOREIGN KEY (customer_id) REFERENCES jaffle_shop.customers(customer_id)
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.erp.orders (
+    order_id INTEGER NOT NULL COMMENT 'Unique order identifier',
+    customer_id INTEGER COMMENT 'Foreign key to customers table',
+    order_date DATE COMMENT 'Order placement date',
+    status VARCHAR(20) COMMENT 'Order status (pending, shipped, delivered, etc.)',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (NULL = active, non-NULL = cancelled)',
+    CONSTRAINT pk_orders PRIMARY KEY (order_id) NOT ENFORCED,
+    CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES origin_simulator_jaffle_corp.erp.customers(customer_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Customer orders table';
 
 -- Order items table
-CREATE TABLE IF NOT EXISTS jaffle_shop.order_items (
-    order_item_id INTEGER PRIMARY KEY,
-    order_id INTEGER,
-    product_id INTEGER,
-    quantity INTEGER,
-    unit_price DECIMAL(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,  -- Rarely used (line items typically immutable)
-    FOREIGN KEY (order_id) REFERENCES jaffle_shop.orders(order_id),
-    FOREIGN KEY (product_id) REFERENCES jaffle_shop.products(product_id)
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.erp.order_items (
+    order_item_id INTEGER NOT NULL COMMENT 'Unique order line item identifier',
+    order_id INTEGER COMMENT 'Foreign key to orders table',
+    product_id INTEGER COMMENT 'Foreign key to products table',
+    quantity INTEGER COMMENT 'Quantity ordered',
+    unit_price DECIMAL(10,2) COMMENT 'Price per unit at time of order',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp (rarely used)',
+    CONSTRAINT pk_order_items PRIMARY KEY (order_item_id) NOT ENFORCED,
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES origin_simulator_jaffle_corp.erp.orders(order_id) NOT ENFORCED,
+    CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES origin_simulator_jaffle_corp.erp.products(product_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Order line items table';
 
 -- Payments table
-CREATE TABLE IF NOT EXISTS jaffle_shop.payments (
-    payment_id INTEGER PRIMARY KEY,
-    order_id INTEGER,
-    payment_method VARCHAR(20),
-    amount DECIMAL(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES jaffle_shop.orders(order_id)
-);
+CREATE TABLE IF NOT EXISTS origin_simulator_jaffle_corp.erp.payments (
+    payment_id INTEGER NOT NULL COMMENT 'Unique payment identifier',
+    order_id INTEGER COMMENT 'Foreign key to orders table',
+    payment_method VARCHAR(20) COMMENT 'Payment method (credit_card, bank_transfer, etc.)',
+    amount DECIMAL(10,2) COMMENT 'Payment amount',
+    created_at TIMESTAMP NOT NULL COMMENT 'Record creation timestamp',
+    updated_at TIMESTAMP NOT NULL COMMENT 'Record last update timestamp',
+    deleted_at TIMESTAMP COMMENT 'Soft delete timestamp',
+    CONSTRAINT pk_payments PRIMARY KEY (payment_id) NOT ENFORCED,
+    CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES origin_simulator_jaffle_corp.erp.orders(order_id) NOT ENFORCED
+) USING DELTA
+COMMENT 'Payment transactions table';
 {%- endmacro %}
 
-{%- macro _get_duckdb_baseline_shop_seed() -%}
+{%- macro _get_databricks_baseline_shop_seed() -%}
 -- ============================================================================
--- jaffle_shop baseline seed data (scaled to 100 customers)
+-- erp schema (shop) baseline seed data for Databricks (scaled to 100 customers)
 -- Auto-generated for realistic demo data
 -- ============================================================================
 
 -- Seed customers (100 customers spread over 100 days)
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (1, 'Brian', 'Alvarez', 'brian.alvarez1@example.com', CURRENT_TIMESTAMP - INTERVAL '99 days', CURRENT_TIMESTAMP - INTERVAL '99 days', NULL),
 (2, 'Kevin', 'Baker', 'kevin.baker2@example.com', CURRENT_TIMESTAMP - INTERVAL '98 days', CURRENT_TIMESTAMP - INTERVAL '98 days', NULL),
 (3, 'Karen', 'Martin', 'karen.martin3@example.com', CURRENT_TIMESTAMP - INTERVAL '97 days', CURRENT_TIMESTAMP - INTERVAL '97 days', NULL),
@@ -2608,7 +2644,7 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (100, 'Donald', 'Reed', 'donald.reed100@example.com', CURRENT_TIMESTAMP - INTERVAL '0 days', CURRENT_TIMESTAMP - INTERVAL '0 days', NULL);
 
 -- Seed products (20 products - established catalog)
-INSERT INTO jaffle_shop.products (product_id, name, category, price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.products (product_id, name, category, price, created_at, updated_at, deleted_at) VALUES
 (1, 'Laptop Pro', 'Electronics', 1299.99, CURRENT_TIMESTAMP - INTERVAL '70 days', CURRENT_TIMESTAMP - INTERVAL '70 days', NULL),
 (2, 'Wireless Mouse', 'Electronics', 29.99, CURRENT_TIMESTAMP - INTERVAL '73 days', CURRENT_TIMESTAMP - INTERVAL '73 days', NULL),
 (3, 'Mechanical Keyboard', 'Electronics', 89.99, CURRENT_TIMESTAMP - INTERVAL '151 days', CURRENT_TIMESTAMP - INTERVAL '151 days', NULL),
@@ -2631,7 +2667,7 @@ INSERT INTO jaffle_shop.products (product_id, name, category, price, created_at,
 (20, 'Wall Art', 'Decor', 89.99, CURRENT_TIMESTAMP - INTERVAL '54 days', CURRENT_TIMESTAMP - INTERVAL '54 days', NULL);
 
 -- Seed orders (500 orders - recent activity)
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (1, 82, CURRENT_DATE - 15, 'pending', CURRENT_TIMESTAMP - INTERVAL '15 days', CURRENT_TIMESTAMP - INTERVAL '15 days', NULL),
 (2, 36, CURRENT_DATE - 32, 'completed', CURRENT_TIMESTAMP - INTERVAL '32 days', CURRENT_TIMESTAMP - INTERVAL '29 days', NULL),
 (3, 14, CURRENT_DATE - 87, 'completed', CURRENT_TIMESTAMP - INTERVAL '87 days', CURRENT_TIMESTAMP - INTERVAL '84 days', NULL),
@@ -3134,7 +3170,7 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (500, 18, CURRENT_DATE - 6, 'completed', CURRENT_TIMESTAMP - INTERVAL '6 days', CURRENT_TIMESTAMP - INTERVAL '4 days', NULL);
 
 -- Seed order items (1200 items - avg 2.4 items per order)
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1, 1, 2, 1, 29.99, CURRENT_TIMESTAMP - INTERVAL '56 days', CURRENT_TIMESTAMP - INTERVAL '56 days', NULL),
 (2, 1, 12, 2, 79.99, CURRENT_TIMESTAMP - INTERVAL '41 days', CURRENT_TIMESTAMP - INTERVAL '41 days', NULL),
 (3, 2, 14, 1, 59.99, CURRENT_TIMESTAMP - INTERVAL '66 days', CURRENT_TIMESTAMP - INTERVAL '66 days', NULL),
@@ -4337,12 +4373,12 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1200, 500, 4, 1, 399.99, CURRENT_TIMESTAMP - INTERVAL '35 days', CURRENT_TIMESTAMP - INTERVAL '35 days', NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_crm() -%}
--- jaffle_crm Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_crm() -%}
+-- crm schema Day 01 delta changes
 -- Simulates marketing activity on Day 01
 
 -- Add 40 email activity records
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (201, 113, 2, CURRENT_DATE, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (202, 88, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (203, 46, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4385,7 +4421,7 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (240, 28, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add 30 web sessions
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (151, 62, CURRENT_DATE, CURRENT_DATE, 17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (152, 121, CURRENT_DATE, CURRENT_DATE, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (153, 1, CURRENT_DATE, CURRENT_DATE, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4418,13 +4454,13 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (180, 8, CURRENT_DATE, CURRENT_DATE, 16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_crm_email_activity() -%}
--- jaffle_crm Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_crm_email_activity() -%}
+-- crm schema Day 01 delta changes
 -- Simulates marketing activity on Day 01
 
 -- Add 40 email activity records
 
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (201, 113, 2, CURRENT_DATE, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (202, 88, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (203, 46, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4467,13 +4503,13 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (240, 28, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_crm_web_sessions() -%}
--- jaffle_crm Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_crm_web_sessions() -%}
+-- crm schema Day 01 delta changes
 -- Simulates marketing activity on Day 01
 
 -- Add 40 email activity records
 
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (151, 62, CURRENT_DATE, CURRENT_DATE, 17, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (152, 121, CURRENT_DATE, CURRENT_DATE, 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (153, 1, CURRENT_DATE, CURRENT_DATE, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4506,12 +4542,12 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (180, 8, CURRENT_DATE, CURRENT_DATE, 16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (101, 'Brian', 'Kapoor', 'brian.kapoor101@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (102, 'Phyllis', 'Smith', 'phyllis.smith102@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (103, 'Helene', 'Cordray', 'helene.cordray103@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4539,7 +4575,7 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (125, 'Meredith', 'Bratton', 'meredith.bratton125@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add 60 new orders
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (501, 101, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (502, 102, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (503, 103, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4602,7 +4638,7 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (560, 75, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add order items for new orders
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1201, 501, 5, 1, 199.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1202, 502, 6, 2, 149.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1203, 502, 8, 3, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4708,7 +4744,7 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1303, 560, 1, 1, 999.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add payments for completed orders
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (221, 252, 'credit_card', 360.19, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (222, 252, 'credit_card', 974.54, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (223, 253, 'credit_card', 1457.35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4763,19 +4799,19 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (272, 310, 'coupon', 1266.84, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Complete 15 pending orders from previous days
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'completed',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (192, 230, 219, 224, 185, 234, 202, 244, 177, 159, 243, 198, 169, 163, 212);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop_customers() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop_customers() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
 
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (101, 'Brian', 'Kapoor', 'brian.kapoor101@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (102, 'Phyllis', 'Smith', 'phyllis.smith102@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (103, 'Helene', 'Cordray', 'helene.cordray103@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4803,13 +4839,13 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (125, 'Meredith', 'Bratton', 'meredith.bratton125@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop_order_items() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop_order_items() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
 
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1201, 501, 5, 1, 199.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1202, 502, 6, 2, 149.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1203, 502, 8, 3, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4915,13 +4951,13 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1303, 560, 1, 1, 999.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop_orders() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop_orders() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
 
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (501, 101, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (502, 102, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (503, 103, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -4984,25 +5020,25 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (560, 75, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop_orders_updates() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop_orders_updates() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
 
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'completed',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (192, 230, 219, 224, 185, 234, 202, 244, 177, 159, 243, 198, 169, 163, 212);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_01_shop_payments() -%}
--- jaffle_shop Day 01 delta changes
+{%- macro _get_databricks_deltas_day_01_shop_payments() -%}
+-- erp schema (shop) Day 01 delta changes
 -- Simulates business activity on Day 01 after baseline
 
 -- Add 25 new customers
 
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (221, 252, 'credit_card', 360.19, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (222, 252, 'credit_card', 974.54, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (223, 253, 'credit_card', 1457.35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5057,12 +5093,12 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (272, 310, 'coupon', 1266.84, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_crm() -%}
--- jaffle_crm Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_crm() -%}
+-- crm schema Day 02 delta changes
 -- Simulates marketing activity on Day 02
 
 -- Add 38 email activity records
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (241, 108, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (242, 101, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (243, 41, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5103,7 +5139,7 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (278, 96, 2, CURRENT_DATE, true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add 28 web sessions
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (181, 111, CURRENT_DATE, CURRENT_DATE, 14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (182, 61, CURRENT_DATE, CURRENT_DATE, 28, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (183, 25, CURRENT_DATE, CURRENT_DATE, 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5134,13 +5170,13 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (208, 17, CURRENT_DATE, CURRENT_DATE, 25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_crm_email_activity() -%}
--- jaffle_crm Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_crm_email_activity() -%}
+-- crm schema Day 02 delta changes
 -- Simulates marketing activity on Day 02
 
 -- Add 38 email activity records
 
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (241, 108, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (242, 101, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (243, 41, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5181,13 +5217,13 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (278, 96, 2, CURRENT_DATE, true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_crm_web_sessions() -%}
--- jaffle_crm Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_crm_web_sessions() -%}
+-- crm schema Day 02 delta changes
 -- Simulates marketing activity on Day 02
 
 -- Add 38 email activity records
 
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (181, 111, CURRENT_DATE, CURRENT_DATE, 14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (182, 61, CURRENT_DATE, CURRENT_DATE, 28, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (183, 25, CURRENT_DATE, CURRENT_DATE, 7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5218,12 +5254,12 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (208, 17, CURRENT_DATE, CURRENT_DATE, 25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (126, 'Cathy', 'Beesly', 'cathy.beesly126@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (127, 'Jim', 'Smith', 'jim.smith127@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (128, 'Meredith', 'Johnson', 'meredith.johnson128@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5248,18 +5284,18 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (147, 'Senator', 'Vance', 'senator.vance147@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Update product prices (market adjustments)
-UPDATE jaffle_shop.products
+UPDATE origin_simulator_jaffle_corp.erp.products
 SET price = 34.99,
     updated_at = CURRENT_TIMESTAMP
 WHERE product_id = 2;  -- Mouse price increase
 
-UPDATE jaffle_shop.products
+UPDATE origin_simulator_jaffle_corp.erp.products
 SET price = 1099.99,
     updated_at = CURRENT_TIMESTAMP
 WHERE product_id = 1;  -- Laptop price increase
 
 -- Add 55 new orders
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (561, 126, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (562, 127, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (563, 128, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5317,7 +5353,7 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (615, 77, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add order items for new orders
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1281, 561, 3, 1, 79.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1282, 562, 1, 2, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1283, 562, 8, 1, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5404,7 +5440,7 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1364, 615, 5, 1, 199.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add payments for completed orders
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (281, 312, 'coupon', 954.29, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (282, 313, 'gift_card', 622.11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (283, 313, 'credit_card', 63.69, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5451,19 +5487,19 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (324, 365, 'bank_transfer', 1392.01, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Complete 12 pending orders from previous days
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'completed',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (293, 220, 281, 298, 276, 264, 214, 307, 255, 238, 232, 218);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_customers() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_customers() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (126, 'Cathy', 'Beesly', 'cathy.beesly126@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (127, 'Jim', 'Smith', 'jim.smith127@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (128, 'Meredith', 'Johnson', 'meredith.johnson128@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5488,13 +5524,13 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (147, 'Senator', 'Vance', 'senator.vance147@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_order_items() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_order_items() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1304, 561, 3, 1, 79.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1305, 562, 1, 2, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1306, 562, 8, 1, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5581,13 +5617,13 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1387, 615, 5, 1, 199.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_orders() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_orders() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (561, 126, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (562, 127, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (563, 128, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5645,25 +5681,25 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (615, 77, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_orders_updates() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_orders_updates() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'completed',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (293, 220, 281, 298, 276, 264, 214, 307, 255, 238, 232, 218);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_payments() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_payments() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (273, 312, 'coupon', 954.29, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (274, 313, 'gift_card', 622.11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (275, 313, 'credit_card', 63.69, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5710,24 +5746,24 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (316, 365, 'bank_transfer', 1392.01, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_02_shop_products_updates() -%}
--- jaffle_shop Day 02 delta changes
+{%- macro _get_databricks_deltas_day_02_shop_products_updates() -%}
+-- erp schema (shop) Day 02 delta changes
 -- Simulates business activity on Day 02 after baseline
 
 -- Add 22 new customers
 
-UPDATE jaffle_shop.products
+UPDATE origin_simulator_jaffle_corp.erp.products
 SET price = 1099.99,
     updated_at = CURRENT_TIMESTAMP
 WHERE product_id = 1;  -- Laptop price increase
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_crm() -%}
--- jaffle_crm Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_crm() -%}
+-- crm schema Day 03 delta changes
 -- Simulates marketing activity on Day 03
 
 -- Add 45 email activity records
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (279, 114, 2, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (280, 75, 3, CURRENT_DATE, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (281, 134, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5775,7 +5811,7 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (323, 8, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add 32 web sessions
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (209, 138, CURRENT_DATE, CURRENT_DATE, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (210, 44, CURRENT_DATE, CURRENT_DATE, 13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (211, 157, CURRENT_DATE, CURRENT_DATE, 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5810,13 +5846,13 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (240, 140, CURRENT_DATE, CURRENT_DATE, 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_crm_email_activity() -%}
--- jaffle_crm Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_crm_email_activity() -%}
+-- crm schema Day 03 delta changes
 -- Simulates marketing activity on Day 03
 
 -- Add 45 email activity records
 
-INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.email_activity (activity_id, customer_id, campaign_id, sent_date, opened, clicked, created_at, updated_at, deleted_at) VALUES
 (279, 114, 2, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (280, 75, 3, CURRENT_DATE, true, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (281, 134, 1, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5864,13 +5900,13 @@ INSERT INTO jaffle_crm.email_activity (activity_id, customer_id, campaign_id, se
 (323, 8, 3, CURRENT_DATE, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_crm_web_sessions() -%}
--- jaffle_crm Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_crm_web_sessions() -%}
+-- crm schema Day 03 delta changes
 -- Simulates marketing activity on Day 03
 
 -- Add 45 email activity records
 
-INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.crm.web_sessions (session_id, customer_id, session_start, session_end, page_views, created_at, updated_at, deleted_at) VALUES
 (209, 138, CURRENT_DATE, CURRENT_DATE, 12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (210, 44, CURRENT_DATE, CURRENT_DATE, 13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (211, 157, CURRENT_DATE, CURRENT_DATE, 6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5905,12 +5941,12 @@ INSERT INTO jaffle_crm.web_sessions (session_id, customer_id, session_start, ses
 (240, 140, CURRENT_DATE, CURRENT_DATE, 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (148, 'Val', 'Halpert', 'val.halpert148@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (149, 'Ryan', 'Malone', 'ryan.malone149@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (150, 'Gabe', 'Johnson', 'gabe.johnson150@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -5941,7 +5977,7 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (175, 'Jordan', 'Palmer', 'jordan.palmer175@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add 65 new orders
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (616, 148, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (617, 149, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (618, 150, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6009,7 +6045,7 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (680, 152, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add order items for new orders
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1371, 616, 1, 1, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1372, 617, 1, 1, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1373, 618, 8, 1, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6127,7 +6163,7 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1485, 680, 2, 1, 34.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Add payments for completed orders
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (341, 366, 'credit_card', 970.14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (342, 367, 'gift_card', 118.37, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (343, 369, 'gift_card', 1399.95, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6188,25 +6224,25 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (398, 429, 'credit_card', 390.53, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Complete 10 pending orders from previous days
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'completed',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (308, 307, 364, 317, 286, 336, 292, 330, 278, 287);
 
 -- Cancel 3 old pending orders
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'cancelled',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (310, 318, 293);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop_customers() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop_customers() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
 
-INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.customers (customer_id, first_name, last_name, email, created_at, updated_at, deleted_at) VALUES
 (148, 'Val', 'Halpert', 'val.halpert148@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (149, 'Ryan', 'Malone', 'ryan.malone149@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (150, 'Gabe', 'Johnson', 'gabe.johnson150@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6237,13 +6273,13 @@ INSERT INTO jaffle_shop.customers (customer_id, first_name, last_name, email, cr
 (175, 'Jordan', 'Palmer', 'jordan.palmer175@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop_order_items() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop_order_items() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
 
-INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.order_items (order_item_id, order_id, product_id, quantity, unit_price, created_at, updated_at, deleted_at) VALUES
 (1388, 616, 1, 1, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1389, 617, 1, 1, 1099.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (1390, 618, 8, 1, 49.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6361,13 +6397,13 @@ INSERT INTO jaffle_shop.order_items (order_item_id, order_id, product_id, quanti
 (1502, 680, 2, 1, 34.99, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop_orders() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop_orders() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
 
-INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.orders (order_id, customer_id, order_date, status, created_at, updated_at, deleted_at) VALUES
 (616, 148, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (617, 149, CURRENT_DATE, 'completed', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (618, 150, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6435,25 +6471,25 @@ INSERT INTO jaffle_shop.orders (order_id, customer_id, order_date, status, creat
 (680, 152, CURRENT_DATE, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop_orders_updates() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop_orders_updates() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
 
-UPDATE jaffle_shop.orders
+UPDATE origin_simulator_jaffle_corp.erp.orders
 SET status = 'cancelled',
     updated_at = CURRENT_TIMESTAMP
 WHERE order_id IN (310, 318, 293);
 {%- endmacro %}
 
-{%- macro _get_duckdb_deltas_day_03_shop_payments() -%}
--- jaffle_shop Day 03 delta changes
+{%- macro _get_databricks_deltas_day_03_shop_payments() -%}
+-- erp schema (shop) Day 03 delta changes
 -- Simulates business activity on Day 03 after baseline
 
 -- Add 28 new customers
 
-INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
+INSERT INTO origin_simulator_jaffle_corp.erp.payments (payment_id, order_id, payment_method, amount, created_at, updated_at, deleted_at) VALUES
 (317, 366, 'credit_card', 970.14, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (318, 367, 'gift_card', 118.37, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 (319, 369, 'gift_card', 1399.95, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -6514,33 +6550,36 @@ INSERT INTO jaffle_shop.payments (payment_id, order_id, payment_method, amount, 
 (374, 429, 'credit_card', 390.53, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 {%- endmacro %}
 
-{%- macro _get_duckdb_utilities_truncate_crm() -%}
--- Truncate all jaffle_crm tables
+{%- macro _get_databricks_utilities_truncate_crm() -%}
+-- Truncate all crm schema tables in Databricks
 -- Order matters: delete child tables before parent tables to avoid FK constraint errors
 
 -- Delete email activity first (has FK to campaigns)
-DELETE FROM jaffle_crm.email_activity;
+DELETE FROM origin_simulator_jaffle_corp.crm.email_activity;
 
 -- Delete web sessions (no FK dependencies)
-DELETE FROM jaffle_crm.web_sessions;
+DELETE FROM origin_simulator_jaffle_corp.crm.web_sessions;
 
 -- Delete campaigns last (was referenced by email_activity)
-DELETE FROM jaffle_crm.campaigns;
+DELETE FROM origin_simulator_jaffle_corp.crm.campaigns;
 {%- endmacro %}
 
-{%- macro _get_duckdb_utilities_truncate_shop() -%}
--- Truncate all jaffle_shop tables
+{%- macro _get_databricks_utilities_truncate_shop() -%}
+-- Truncate all erp schema (shop) tables in Databricks
 -- Order matters: delete child tables before parent tables to avoid FK constraint errors
 
--- Delete order items first (has FKs to orders and products)
-DELETE FROM jaffle_shop.order_items;
+-- Delete payments first (has FK to orders)
+DELETE FROM origin_simulator_jaffle_corp.erp.payments;
+
+-- Delete order items next (has FKs to orders and products)
+DELETE FROM origin_simulator_jaffle_corp.erp.order_items;
 
 -- Delete orders next (has FK to customers)
-DELETE FROM jaffle_shop.orders;
+DELETE FROM origin_simulator_jaffle_corp.erp.orders;
 
 -- Delete products (no dependencies on it anymore)
-DELETE FROM jaffle_shop.products;
+DELETE FROM origin_simulator_jaffle_corp.erp.products;
 
 -- Delete customers last (no dependencies on it anymore)
-DELETE FROM jaffle_shop.customers;
+DELETE FROM origin_simulator_jaffle_corp.erp.customers;
 {%- endmacro %}
