@@ -528,6 +528,7 @@ jobs:
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
         run: |
           mkdir -p ~/.dbt
+          # Connect directly to jaffle_shop - databases already exist
           cat > ~/.dbt/profiles.yml << EOF
           ingestion_simulator:
             target: azure
@@ -536,7 +537,7 @@ jobs:
                 type: sqlserver
                 server: ${SQL_SERVER}.database.windows.net
                 port: 1433
-                database: master
+                database: jaffle_shop
                 schema: dbo
                 authentication: sql
                 user: "${SQL_USER}"
@@ -649,44 +650,9 @@ jobs:
 
       - name: Cleanup - Reset to baseline
         if: always()
-        run: dbt run-operation origin_reset --profile ingestion_simulator --target azure
-
-      - name: Cleanup - Drop Azure SQL databases
-        if: always()
-        env:
-          SQL_SERVER: ${{ secrets.SQL_SERVER }}
-          SQL_USER: ${{ secrets.SQL_USER }}
-          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
         run: |
-          pip install pyodbc
-
-          python << 'PYTHON_SCRIPT'
-          import pyodbc
-          import os
-
-          server = os.environ['SQL_SERVER'] + '.database.windows.net'
-          user = os.environ['SQL_USER']
-          password = os.environ['SQL_PASSWORD']
-
-          conn_str = f"DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE=master;UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=no"
-
-          try:
-              conn = pyodbc.connect(conn_str)
-              conn.autocommit = True
-              cursor = conn.cursor()
-
-              for db in ['jaffle_shop', 'jaffle_crm']:
-                  try:
-                      cursor.execute(f"DROP DATABASE IF EXISTS [{db}]")
-                      print(f"✓ Dropped database: {db}")
-                  except Exception as e:
-                      print(f"⚠ Could not drop {db}: {e}")
-
-              cursor.close()
-              conn.close()
-          except Exception as e:
-              print(f"⚠ Cleanup warning: {e}")
-          PYTHON_SCRIPT
+          # Reset tables to baseline state (databases are pre-existing)
+          dbt run-operation origin_reset --profile ingestion_simulator --target azure || echo "⚠️ Reset skipped"
 
   summary:
     name: Data Quality Validation Summary

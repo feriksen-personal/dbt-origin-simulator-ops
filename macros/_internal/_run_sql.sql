@@ -39,9 +39,7 @@
     {% endfor %}
   {% elif target.type == 'sqlserver' %}
     {# SQL Server needs statements executed separately #}
-    {# Also, dbt-sqlserver doesn't support USE statements via run_query #}
-    {# Note: USE database statements are included in SQL but sqlserver adapter #}
-    {# connects to a specific database via the profile, so USE is optional #}
+    {# USE statements switch the database context for subsequent queries #}
 
     {# Split on semicolon and execute each statement separately #}
     {% set statements = sql.split(';') %}
@@ -57,8 +55,7 @@
           {% endif %}
         {% endfor %}
         {% set trimmed = ' '.join(lines).strip() %}
-        {# Skip USE statements as they're handled by the profile #}
-        {% if trimmed and not trimmed.upper().startswith('USE ') %}
+        {% if trimmed %}
           {% do run_query(trimmed) %}
         {% endif %}
       {% endif %}
