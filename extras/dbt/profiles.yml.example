@@ -3,10 +3,10 @@
 # Copy this file to ~/.dbt/profiles.yml and customize for your environment.
 #
 # Usage:
-#   dbt run-operation demo_load_baseline --profile ingestion_simulator               # Uses default 'dev' target
-#   dbt run-operation demo_load_baseline --profile ingestion_simulator --target motherduck
-#   dbt run-operation demo_load_baseline --profile ingestion_simulator --target azure
-#   dbt run-operation demo_load_baseline --profile ingestion_simulator --target databricks
+#   dbt run-operation origin_load_baseline --profile ingestion_simulator               # Uses default 'dev' target
+#   dbt run-operation origin_load_baseline --profile ingestion_simulator --target motherduck
+#   dbt run-operation origin_load_baseline --profile ingestion_simulator --target azure
+#   dbt run-operation origin_load_baseline --profile ingestion_simulator --target databricks
 #
 # Documentation: https://github.com/feriksen-personal/dbt-azure-demo-source-ops/wiki/Getting-Started
 
@@ -55,9 +55,9 @@ ingestion_simulator:
     #   - ODBC Driver 18 for SQL Server installed
     #
     # Setup environment variables:
-    #   export DEMO_SQL_SERVER=your-server-name  # Without .database.windows.net
-    #   export DEMO_SQL_USER=your-username
-    #   export DEMO_SQL_PASSWORD=your-password
+    #   export SQL_SERVER=your-server-name  # Without .database.windows.net
+    #   export SQL_USER=your-username
+    #   export SQL_PASSWORD=your-password
     #
     # Testing connection:
     #   dbt debug --profile ingestion_simulator --target azure
@@ -65,13 +65,13 @@ ingestion_simulator:
     # Note: Package creates jaffle_shop and jaffle_crm databases automatically
     azure:
       type: sqlserver
-      server: "{{ env_var('DEMO_SQL_SERVER') }}.database.windows.net"
+      server: "{{ env_var('SQL_SERVER') }}.database.windows.net"
       port: 1433
       database: master  # Package creates jaffle_shop/jaffle_crm databases
       schema: dbo
       authentication: sql
-      user: "{{ env_var('DEMO_SQL_USER') }}"
-      password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
+      user: "{{ env_var('SQL_USER') }}"
+      password: "{{ env_var('SQL_PASSWORD') }}"
       driver: "ODBC Driver 18 for SQL Server"
       encrypt: true          # Required for Azure SQL
       trust_cert: false      # Required for Azure SQL
@@ -115,9 +115,9 @@ ingestion_simulator:
 #   export MOTHERDUCK_TOKEN=your-token-here
 #
 #   # Azure SQL
-#   export DEMO_SQL_SERVER=your-server-name
-#   export DEMO_SQL_USER=your-username
-#   export DEMO_SQL_PASSWORD=your-password
+#   export SQL_SERVER=your-server-name
+#   export SQL_USER=your-username
+#   export SQL_PASSWORD=your-password
 #
 #   # Databricks
 #   export DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
@@ -127,7 +127,7 @@ ingestion_simulator:
 #
 # Then source it before running dbt:
 #   source .env
-#   dbt run-operation demo_load_baseline --profile ingestion_simulator
+#   dbt run-operation origin_load_baseline --profile ingestion_simulator
 #
 # ============================================================================
 # Testing Your Configuration

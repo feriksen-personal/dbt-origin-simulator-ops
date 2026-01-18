@@ -4,7 +4,7 @@
     {
       "label": "[dbt-origin-simulator] Load Baseline (Day 0)",
       "type": "shell",
-      "command": "dbt run-operation demo_load_baseline --profile demo_source",
+      "command": "dbt run-operation origin_load_baseline --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -19,7 +19,7 @@
     {
       "label": "[dbt-origin-simulator] Check Status",
       "type": "shell",
-      "command": "dbt run-operation demo_status --profile demo_source",
+      "command": "dbt run-operation origin_status --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -34,7 +34,7 @@
     {
       "label": "[dbt-origin-simulator] Apply Day 1 Changes",
       "type": "shell",
-      "command": "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source",
+      "command": "dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -49,7 +49,7 @@
     {
       "label": "[dbt-origin-simulator] Apply Day 2 Changes",
       "type": "shell",
-      "command": "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source",
+      "command": "dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -64,7 +64,7 @@
     {
       "label": "[dbt-origin-simulator] Apply Day 3 Changes",
       "type": "shell",
-      "command": "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source",
+      "command": "dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -79,7 +79,7 @@
     {
       "label": "[dbt-origin-simulator] Reset to Baseline",
       "type": "shell",
-      "command": "dbt run-operation demo_reset --profile demo_source",
+      "command": "dbt run-operation origin_reset --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -94,7 +94,7 @@
     {
       "label": "[dbt-origin-simulator] Full Workflow (Baseline + All 3 Days)",
       "type": "shell",
-      "command": "dbt run-operation demo_load_baseline --profile demo_source && dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source && dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source && dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source && dbt run-operation demo_status --profile demo_source",
+      "command": "dbt run-operation origin_load_baseline --profile ingestion_simulator && dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator && dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator && dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator && dbt run-operation origin_status --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -109,7 +109,7 @@
     {
       "label": "[dbt-origin-simulator] Verify Baseline Data",
       "type": "shell",
-      "command": "dbt run-operation demo_verify_baseline --profile demo_source",
+      "command": "dbt run-operation origin_verify_baseline --profile ingestion_simulator",
       "problemMatcher": [],
       "presentation": {
         "echo": true,

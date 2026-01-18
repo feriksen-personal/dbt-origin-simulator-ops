@@ -64,13 +64,13 @@ pip install datacontract-cli              # For ODCS contracts
 
 ```bash
 # Test dbt connection
-dbt debug --profile demo_source --target dev
+dbt debug --profile ingestion_simulator --target dev
 
 # Load baseline data
-dbt run-operation demo_load_baseline --profile demo_source
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Check status
-dbt run-operation demo_status --profile demo_source
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 ---
@@ -114,37 +114,37 @@ dbt-origin-simulator-ops/
 ### 3. Test Your Changes
 
 **Use VS Code Tasks** (Cmd/Ctrl+Shift+P → "Tasks: Run Task"):
-- `[dbt-demo-source] Load Baseline` - Initialize data
-- `[dbt-demo-source] Apply Day 1 Changes` - Test delta application
-- `[dbt-demo-source] Check Status` - Verify row counts
-- `[dbt-demo-source] Reset to Baseline` - Clean slate
+- `[dbt-origin-simulator] Load Baseline` - Initialize data
+- `[dbt-origin-simulator] Apply Day 1 Changes` - Test delta application
+- `[dbt-origin-simulator] Check Status` - Verify row counts
+- `[dbt-origin-simulator] Reset to Baseline` - Clean slate
 
 **Or use dbt commands directly:**
 
 ```bash
 # Test baseline load
-dbt run-operation demo_load_baseline --profile demo_source
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Test delta application
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
-dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source
-dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator
 
 # Verify status
-dbt run-operation demo_status --profile demo_source
+dbt run-operation origin_status --profile ingestion_simulator
 
 # Reset for clean slate
-dbt run-operation demo_reset --profile demo_source
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 **Multi-platform testing** (if you have credentials):
 
 ```bash
 # Test on Databricks
-dbt run-operation demo_load_baseline --profile demo_source --target databricks
+dbt run-operation origin_load_baseline --profile ingestion_simulator --target databricks
 
 # Test on MotherDuck
-dbt run-operation demo_load_baseline --profile demo_source --target motherduck
+dbt run-operation origin_load_baseline --profile ingestion_simulator --target motherduck
 ```
 
 ### 4. Run Data Quality Checks (Optional)
@@ -153,7 +153,7 @@ If you're modifying data or schemas:
 
 ```bash
 # Run Soda contracts
-soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+soda scan -d ingestion_simulator -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
 
 # Run ODCS contracts
 datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
@@ -166,7 +166,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```bash
 # Good commit messages
 git commit -m "feat: add new delta operation for day 4"
-git commit -m "fix: correct row count validation in demo_status"
+git commit -m "fix: correct row count validation in origin_status"
 git commit -m "docs: update README with Databricks examples"
 git commit -m "refactor: simplify SQL routing logic"
 
@@ -233,7 +233,7 @@ We welcome contributions in these areas:
 
 ### dbt Macros
 - Prefix internal macros with `_` (e.g., `_get_sql`)
-- Public macros use `demo_` prefix (e.g., `demo_load_baseline`)
+- Public macros use `origin_` prefix (e.g., `origin_load_baseline`)
 - Document macro parameters and return values
 - Use Jinja templating consistently
 

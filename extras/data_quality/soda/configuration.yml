@@ -1,11 +1,11 @@
-# Soda Core Configuration for dbt-demo-source-ops
+# Soda Core Configuration for dbt-origin-simulator-ops
 #
 # This file configures data sources for Soda Core data quality checks.
 # Copy and customize for your environment.
 #
 # Usage:
-#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
-#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+#   soda scan -d ingestion_simulator -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+#   soda scan -d ingestion_simulator -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
 #
 # Installation:
 #   pip install soda-core-duckdb              # For DuckDB/MotherDuck
@@ -21,9 +21,9 @@
 # Database files: Relative path to your DuckDB file
 #
 # Uncomment this section to use DuckDB:
-data_source demo_source:
+data_source ingestion_simulator:
   type: duckdb
-  path: data/demo_source.duckdb
+  path: data/ingestion_simulator.duckdb
   # schema: jaffle_shop  # No default schema - use fully qualified names in contracts
 
 # ============================================================================
@@ -36,7 +36,7 @@ data_source demo_source:
 #   - Set environment variable: export MOTHERDUCK_TOKEN=your-token
 #
 # Uncomment this section to use MotherDuck:
-# data_source demo_source:
+# data_source ingestion_simulator:
 #   type: duckdb
 #   path: md:
 #   token: ${MOTHERDUCK_TOKEN}
@@ -50,17 +50,17 @@ data_source demo_source:
 #   - Azure SQL database provisioned
 #   - Firewall rules configured
 #   - Set environment variables:
-#       export DEMO_SQL_SERVER=your-server-name
-#       export DEMO_SQL_USER=your-username
-#       export DEMO_SQL_PASSWORD=your-password
+#       export SQL_SERVER=your-server-name
+#       export SQL_USER=your-username
+#       export SQL_PASSWORD=your-password
 #
 # Uncomment this section to use Azure SQL:
-# data_source demo_source:
+# data_source ingestion_simulator:
 #   type: sqlserver
-#   host: ${DEMO_SQL_SERVER}.database.windows.net
+#   host: ${SQL_SERVER}.database.windows.net
 #   port: 1433
-#   username: ${DEMO_SQL_USER}
-#   password: ${DEMO_SQL_PASSWORD}
+#   username: ${SQL_USER}
+#   password: ${SQL_PASSWORD}
 #   database: jaffle_shop  # Scans one database at a time
 #   schema: erp
 #   driver: ODBC Driver 18 for SQL Server
@@ -81,7 +81,7 @@ data_source demo_source:
 #       export DATABRICKS_CATALOG=your-catalog-name
 #
 # Uncomment this section to use Databricks:
-# data_source demo_source:
+# data_source ingestion_simulator:
 #   type: spark
 #   method: databricks
 #   host: ${DATABRICKS_SERVER_HOSTNAME}
@@ -116,11 +116,11 @@ data_source demo_source:
 #
 # 1. Scan jaffle_shop:
 #    - Set database: jaffle_shop, schema: erp
-#    - Run: soda scan -d demo_source -c configuration.yml contracts/jaffle_shop.yml
+#    - Run: soda scan -d ingestion_simulator -c configuration.yml contracts/jaffle_shop.yml
 #
 # 2. Scan jaffle_crm:
 #    - Update configuration: database: jaffle_crm, schema: crm
-#    - Run: soda scan -d demo_source -c configuration.yml contracts/jaffle_crm.yml
+#    - Run: soda scan -d ingestion_simulator -c configuration.yml contracts/jaffle_crm.yml
 #
 # For DuckDB/MotherDuck, you can reference both databases in a single scan:
 #    - Use fully qualified names: jaffle_shop.erp.customers, jaffle_crm.crm.campaigns
@@ -139,4 +139,4 @@ data_source demo_source:
 # Issue: "ODBC Driver 18 not found" (Azure SQL)
 # Solution: Install driver from https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
 #
-# For more help: https://github.com/feriksen-personal/dbt-demo-source-ops/wiki/Troubleshooting
+# For more help: https://github.com/feriksen-personal/dbt-origin-simulator-ops/wiki/Troubleshooting

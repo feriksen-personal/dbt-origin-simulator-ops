@@ -24,9 +24,9 @@ packages:
 
 ```bash
 dbt deps
-dbt run-operation demo_load_baseline --profile ingestion_simulator
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 > ⚠️ Always use `--profile` to target your source database connection — never run against your default (target) profile. The VS Code tasks in `extras/` handle this automatically.
@@ -61,10 +61,10 @@ Your dbt project, Lakeflow Connect, Fivetran, or Spark jobs consume these as ext
 
 | Operation | Purpose | Example |
 | --- | --- | --- |
-| `demo_load_baseline` | Initialize source systems with Day 0 data | `dbt run-operation demo_load_baseline --profile ingestion_simulator` |
-| `demo_apply_delta` | Apply incremental changes (day 1/2/3) | `dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator` |
-| `demo_reset` | Reset sources to baseline state | `dbt run-operation demo_reset --profile ingestion_simulator` |
-| `demo_status` | Inspect current source state | `dbt run-operation demo_status --profile ingestion_simulator` |
+| `origin_load_baseline` | Initialize source systems with Day 0 data | `dbt run-operation origin_load_baseline --profile ingestion_simulator` |
+| `origin_apply_delta` | Apply incremental changes (day 1/2/3) | `dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator` |
+| `origin_reset` | Reset sources to baseline state | `dbt run-operation origin_reset --profile ingestion_simulator` |
+| `origin_status` | Inspect current source state | `dbt run-operation origin_status --profile ingestion_simulator` |
 
 📚 **[Detailed Operations Guide →](https://github.com/feriksen-personal/dbt-origin-simulator-ops/wiki/Operations-Guide)**
 

@@ -33,9 +33,9 @@ When to use what, and how it all fits together.
 4. Reset and repeat
 
 ```bash
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 dbt run --profile my_project
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 dbt run --profile my_project  # Test incremental models
 ```
 

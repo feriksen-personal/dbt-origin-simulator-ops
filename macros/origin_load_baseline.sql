@@ -9,7 +9,7 @@
   seed data can be safely reloaded (uses INSERT or MERGE depending on adapter).
 
   Usage:
-    dbt run-operation demo_load_baseline --profile demo_source
+    dbt run-operation origin_load_baseline --profile ingestion_simulator
 
   Example output:
     Loading baseline schema and data...
@@ -29,7 +29,7 @@
     ══════════════════════════
 #}
 
-{% macro demo_load_baseline() %}
+{% macro origin_load_baseline() %}
   {% set cfg = origin_simulator_ops._get_config() %}
 
   {{ origin_simulator_ops._log("") }}
@@ -92,5 +92,5 @@
   {{ origin_simulator_ops._log("✓ Baseline load complete!") }}
 
   {# Show final status #}
-  {{ origin_simulator_ops.demo_status() }}
+  {{ origin_simulator_ops.origin_status() }}
 {% endmacro %}

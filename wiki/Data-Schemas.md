@@ -667,7 +667,7 @@ Complete ID ranges at each state for all tables:
 
 If you need to insert custom data for specific test scenarios, be mindful of primary key collisions with package-managed data — this is on you to manage.
 
-Run `demo_reset` anytime to return to a known valid baseline state.
+Run `origin_reset` anytime to return to a known valid baseline state.
 
 ---
 

@@ -8,7 +8,7 @@
   - Cleaning up after testing
 
   Usage:
-    dbt run-operation demo_reset --profile demo_source
+    dbt run-operation origin_reset --profile ingestion_simulator
 
   Example output:
     Resetting demo databases to baseline...
@@ -40,7 +40,7 @@
     ══════════════════════════
 #}
 
-{% macro demo_reset() %}
+{% macro origin_reset() %}
   {% set cfg = origin_simulator_ops._get_config() %}
 
   {{ origin_simulator_ops._log("") }}
@@ -61,5 +61,5 @@
   {{ origin_simulator_ops._log("") }}
 
   {# Reload baseline data #}
-  {{ origin_simulator_ops.demo_load_baseline() }}
+  {{ origin_simulator_ops.origin_load_baseline() }}
 {% endmacro %}

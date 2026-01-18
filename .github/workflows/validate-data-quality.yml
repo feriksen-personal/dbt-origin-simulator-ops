@@ -41,20 +41,20 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml <<EOF
-          demo_source:
+          ingestion_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'data/demo_source.duckdb'
+                path: 'data/ingestion_simulator.duckdb'
           EOF
 
       - name: Install dbt dependencies
-        run: dbt deps --profile demo_source
+        run: dbt deps --profile ingestion_simulator
 
       # ========== BASELINE STATE ==========
       - name: Load baseline data
-        run: dbt run-operation demo_load_baseline --profile demo_source
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
 
       - name: ODCS Contract - jaffle_shop tables (baseline)
         run: |
@@ -72,25 +72,25 @@ jobs:
 
       - name: Soda Contract - jaffle_shop.yml (baseline)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
       - name: Soda Contract - jaffle_crm.yml (baseline)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_crm.yml
 
       - name: Soda Scan - baseline_checks.yml
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/baseline_checks.yml
 
       - name: Soda Scan - relationship_checks.yml (baseline)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
@@ -112,7 +112,7 @@ jobs:
 
       # ========== DAY 1 STATE ==========
       - name: Apply Day 1 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source"
+        run: "dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator"
 
       - name: ODCS Contract - jaffle_shop tables (day 1)
         run: |
@@ -130,25 +130,25 @@ jobs:
 
       - name: Soda Contract - jaffle_shop.yml (day 1)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
       - name: Soda Contract - jaffle_crm.yml (day 1)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_crm.yml
 
       - name: Soda Scan - delta_day1_checks.yml
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day1_checks.yml
 
       - name: Soda Scan - relationship_checks.yml (day 1)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
@@ -170,7 +170,7 @@ jobs:
 
       # ========== DAY 2 STATE ==========
       - name: Apply Day 2 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source"
+        run: "dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator"
 
       - name: ODCS Contract - jaffle_shop tables (day 2)
         run: |
@@ -188,25 +188,25 @@ jobs:
 
       - name: Soda Contract - jaffle_shop.yml (day 2)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
       - name: Soda Contract - jaffle_crm.yml (day 2)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_crm.yml
 
       - name: Soda Scan - delta_day2_checks.yml
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day2_checks.yml
 
       - name: Soda Scan - relationship_checks.yml (day 2)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
@@ -228,7 +228,7 @@ jobs:
 
       # ========== DAY 3 STATE ==========
       - name: Apply Day 3 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source"
+        run: "dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator"
 
       - name: ODCS Contract - jaffle_shop tables (day 3)
         run: |
@@ -246,25 +246,25 @@ jobs:
 
       - name: Soda Contract - jaffle_shop.yml (day 3)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
       - name: Soda Contract - jaffle_crm.yml (day 3)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_crm.yml
 
       - name: Soda Scan - delta_day3_checks.yml
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day3_checks.yml
 
       - name: Soda Scan - relationship_checks.yml (day 3)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
@@ -362,74 +362,74 @@ jobs:
           echo "DATABRICKS_CATALOG=${DATABRICKS_CATALOG}" >> $GITHUB_ENV
 
       - name: Install dbt dependencies
-        run: dbt deps --profile demo_source
+        run: dbt deps --profile ingestion_simulator
 
       - name: Test Databricks connection
-        run: dbt debug --profile demo_source --target databricks
+        run: dbt debug --profile ingestion_simulator --target databricks
 
       - name: Load baseline data
-        run: dbt run-operation demo_load_baseline --profile demo_source --target databricks
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator --target databricks
 
       - name: Validate Soda contracts - jaffle_shop
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_shop.yml
 
       - name: Validate Soda contracts - jaffle_crm
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/contracts/jaffle_crm.yml
 
       - name: Validate Soda scan - baseline checks
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/baseline_checks.yml
 
       - name: Apply Day 1 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source --target databricks"
+        run: "dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator --target databricks"
 
       - name: Validate Soda scan - Day 1 delta checks
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day1_checks.yml
 
       - name: Validate Soda scan - relationships after Day 1
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
       - name: Apply Day 2 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source --target databricks"
+        run: "dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator --target databricks"
 
       - name: Validate Soda scan - Day 2 delta checks
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day2_checks.yml
 
       - name: Validate Soda scan - relationships after Day 2
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
       - name: Apply Day 3 delta
-        run: "dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source --target databricks"
+        run: "dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator --target databricks"
 
       - name: Validate Soda scan - Day 3 delta checks
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/delta_day3_checks.yml
 
       - name: Validate Soda scan - relationships after Day 3
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/data_quality/soda/configuration.yml \
             extras/data_quality/soda/scans/relationship_checks.yml
 
@@ -481,7 +481,7 @@ jobs:
 
       - name: Cleanup - Reset to baseline
         if: always()
-        run: dbt run-operation demo_reset --profile demo_source --target databricks
+        run: dbt run-operation origin_reset --profile ingestion_simulator --target databricks
 
   summary:
     name: Data Quality Validation Summary

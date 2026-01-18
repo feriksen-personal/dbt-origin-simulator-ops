@@ -42,9 +42,9 @@ packages:
 
 ```bash
 dbt deps
-dbt run-operation demo_load_baseline --profile ingestion_simulator
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 > ⚠️ Always use `--profile` to target your source database connection — never run against your default (target) profile.
@@ -57,10 +57,10 @@ dbt run-operation demo_status --profile ingestion_simulator
 
 | Operation | Purpose |
 |-----------|---------|
-| `demo_load_baseline` | Initialize source systems with baseline data |
-| `demo_apply_delta` | Apply incremental changes (day 1, 2, or 3) |
-| `demo_reset` | Reset sources to baseline state |
-| `demo_status` | Inspect current source state |
+| `origin_load_baseline` | Initialize source systems with baseline data |
+| `origin_apply_delta` | Apply incremental changes (day 1, 2, or 3) |
+| `origin_reset` | Reset sources to baseline state |
+| `origin_status` | Inspect current source state |
 
 📚 **[Detailed Operations Guide →](Operations-Guide)**
 

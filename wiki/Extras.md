@@ -86,11 +86,11 @@ Deterministic integration tests with **exact row counts** per state:
 
 ```bash
 # After loading baseline
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 soda scan -d ingestion_simulator -c extras/data_quality/soda/configuration.yml extras/data_quality/soda/scans/baseline_checks.yml
 
 # After Day 1
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 soda scan -d ingestion_simulator -c extras/data_quality/soda/configuration.yml extras/data_quality/soda/scans/delta_day1_checks.yml
 ```
 
@@ -198,13 +198,13 @@ jobs:
           dbt deps
       
       - name: Load baseline
-        run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
       
       - name: Run dbt models
         run: dbt run --profile my_project
       
       - name: Apply Day 1 delta
-        run: dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+        run: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
       
       - name: Run incremental models
         run: dbt run --profile my_project

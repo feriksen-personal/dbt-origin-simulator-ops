@@ -158,52 +158,52 @@ jobs:
         run: |
           dbt --version
 
-      - name: Test demo_load_baseline
+      - name: Test origin_load_baseline
         run: |
-          echo "=== Testing demo_load_baseline ==="
-          dbt run-operation demo_load_baseline --profile origin_simulator
+          echo "=== Testing origin_load_baseline ==="
+          dbt run-operation origin_load_baseline --profile origin_simulator
 
       - name: Verify baseline data
         run: |
           echo "=== Verifying baseline data ==="
-          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_baseline.log
+          dbt run-operation origin_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_baseline.log
 
-      - name: Test demo_status
+      - name: Test origin_status
         run: |
-          echo "=== Testing demo_status ==="
-          dbt run-operation demo_status --profile origin_simulator
+          echo "=== Testing origin_status ==="
+          dbt run-operation origin_status --profile origin_simulator
 
       # TODO: Re-enable delta tests after Issue #40 is resolved
       # Currently blocked: baseline has 5 customers, deltas reference IDs 6-125
-      # - name: Test demo_apply_delta (day 1)
+      # - name: Test origin_apply_delta (day 1)
       #   run: |
-      #     echo "=== Testing demo_apply_delta day 1 ==="
-      #     dbt run-operation demo_apply_delta --args '{day: 1}' --profile origin_simulator
+      #     echo "=== Testing origin_apply_delta day 1 ==="
+      #     dbt run-operation origin_apply_delta --args '{day: 1}' --profile origin_simulator
       #
-      # - name: Test demo_apply_delta (day 2)
+      # - name: Test origin_apply_delta (day 2)
       #   run: |
-      #     echo "=== Testing demo_apply_delta day 2 ==="
-      #     dbt run-operation demo_apply_delta --args '{day: 2}' --profile origin_simulator
+      #     echo "=== Testing origin_apply_delta day 2 ==="
+      #     dbt run-operation origin_apply_delta --args '{day: 2}' --profile origin_simulator
       #
-      # - name: Test demo_apply_delta (day 3)
+      # - name: Test origin_apply_delta (day 3)
       #   run: |
-      #     echo "=== Testing demo_apply_delta day 3 ==="
-      #     dbt run-operation demo_apply_delta --args '{day: 3}' --profile origin_simulator
+      #     echo "=== Testing origin_apply_delta day 3 ==="
+      #     dbt run-operation origin_apply_delta --args '{day: 3}' --profile origin_simulator
 
-      - name: Test demo_reset
+      - name: Test origin_reset
         run: |
-          echo "=== Testing demo_reset ==="
-          dbt run-operation demo_reset --profile origin_simulator
+          echo "=== Testing origin_reset ==="
+          dbt run-operation origin_reset --profile origin_simulator
 
       - name: Verify reset restored baseline
         run: |
           echo "=== Verifying reset restored baseline ==="
-          dbt run-operation demo_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_reset.log
+          dbt run-operation origin_verify_baseline --profile origin_simulator 2>&1 | tee /tmp/verify_reset.log
 
       - name: Final status check
         run: |
           echo "=== Final status check ==="
-          dbt run-operation demo_status --profile origin_simulator
+          dbt run-operation origin_status --profile origin_simulator
 
       - name: Post test results to PR
         if: github.event_name == 'pull_request'

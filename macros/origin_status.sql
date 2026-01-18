@@ -6,7 +6,7 @@
   show the results of data changes.
 
   Usage:
-    dbt run-operation demo_status --target dev
+    dbt run-operation origin_status --target dev
 
   Example output:
     ═══ Demo Source Status ═══
@@ -20,7 +20,7 @@
     ══════════════════════════
 #}
 
-{% macro demo_status() %}
+{% macro origin_status() %}
   {% set cfg = origin_simulator_ops._get_config() %}
 
   {# Query row counts from all tables #}

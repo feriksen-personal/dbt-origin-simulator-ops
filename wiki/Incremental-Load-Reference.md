@@ -6,7 +6,7 @@ Quick reference for expected row counts at each state. Use these values for CI/C
 
 ## Baseline (Day 0)
 
-Initial state after `demo_load_baseline`.
+Initial state after `origin_load_baseline`.
 
 ### jaffle_shop
 
@@ -30,7 +30,7 @@ Initial state after `demo_load_baseline`.
 
 ## After Day 1
 
-State after `demo_apply_delta --args '{day: 1}'`.
+State after `origin_apply_delta --args '{day: 1}'`.
 
 ### jaffle_shop
 
@@ -54,7 +54,7 @@ State after `demo_apply_delta --args '{day: 1}'`.
 
 ## After Day 2
 
-State after `demo_apply_delta --args '{day: 2}'`.
+State after `origin_apply_delta --args '{day: 2}'`.
 
 ### jaffle_shop
 
@@ -78,7 +78,7 @@ State after `demo_apply_delta --args '{day: 2}'`.
 
 ## After Day 3
 
-State after `demo_apply_delta --args '{day: 3}'`.
+State after `origin_apply_delta --args '{day: 3}'`.
 
 ### jaffle_shop
 
@@ -121,7 +121,7 @@ Total rows at each state:
 # GitHub Actions example
 - name: Verify baseline state
   run: |
-    COUNT=$(dbt run-operation demo_status --profile ingestion_simulator | grep customers | awk '{print $2}')
+    COUNT=$(dbt run-operation origin_status --profile ingestion_simulator | grep customers | awk '{print $2}')
     [ "$COUNT" -eq "100" ] || exit 1
 ```
 

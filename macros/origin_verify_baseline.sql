@@ -7,7 +7,7 @@
   This is primarily used in CI/CD testing to validate operations.
 
   Usage:
-    dbt run-operation demo_verify_baseline --profile demo_source
+    dbt run-operation origin_verify_baseline --profile ingestion_simulator
 
   Example output:
     ╔════════════════════════════════════════════════════════╗
@@ -26,7 +26,7 @@
     ✓ All tests passed
 #}
 
-{% macro demo_verify_baseline() %}
+{% macro origin_verify_baseline() %}
   {# Expected baseline counts (scaled to 100 customers) #}
   {% set expected_counts = {
     'jaffle_shop.customers': 100,

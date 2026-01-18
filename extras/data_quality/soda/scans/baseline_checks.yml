@@ -1,10 +1,10 @@
 # Soda Scan: Baseline State Validation
 #
-# Validates that demo_load_baseline operation created the correct
+# Validates that origin_load_baseline operation created the correct
 # deterministic baseline state (Day 0).
 #
 # Usage:
-#   soda scan -d demo_source -c configuration.yml baseline_checks.yml
+#   soda scan -d ingestion_simulator -c configuration.yml baseline_checks.yml
 
 checks for jaffle_shop.customers:
   - row_count = 100

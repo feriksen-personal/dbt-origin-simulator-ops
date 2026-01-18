@@ -1,6 +1,6 @@
 # Soda Scan: Day 3 Delta Validation (Integration Test)
 #
-# Validates that demo_apply_delta --args '{day: 3}' applied changes correctly.
+# Validates that origin_apply_delta --args '{day: 3}' applied changes correctly.
 # This is a deterministic integration test with exact row counts.
 #
 # Expected changes from Day 2:
@@ -14,8 +14,8 @@
 # - jaffle_crm.web_sessions: +32 rows (IDs 209-240)
 #
 # Usage:
-#   # After running: dbt run-operation demo_apply_delta --args '{day: 3}'
-#   soda scan -d demo_source -c configuration.yml delta_day3_checks.yml
+#   # After running: dbt run-operation origin_apply_delta --args '{day: 3}'
+#   soda scan -d ingestion_simulator -c configuration.yml delta_day3_checks.yml
 
 checks for jaffle_shop.customers:
   - row_count = 175  # Day 2 (147) + 28 new

@@ -83,9 +83,9 @@ cp extras/dbt/profiles.yml.example ~/.dbt/profiles.yml
 
 # Set environment variables (for MotherDuck/Azure)
 export MOTHERDUCK_TOKEN=your-token
-export DEMO_SQL_SERVER=your-server
-export DEMO_SQL_USER=your-user
-export DEMO_SQL_PASSWORD=your-password
+export SQL_SERVER=your-server
+export SQL_USER=your-user
+export SQL_PASSWORD=your-password
 
 # Test each target
 dbt debug --profile ingestion_simulator --target dev         # Local DuckDB
@@ -93,7 +93,7 @@ dbt debug --profile ingestion_simulator --target motherduck  # MotherDuck cloud
 dbt debug --profile ingestion_simulator --target azure       # Azure SQL
 
 # Use specific target with operations
-dbt run-operation demo_load_baseline --profile ingestion_simulator --target motherduck
+dbt run-operation origin_load_baseline --profile ingestion_simulator --target motherduck
 ```
 
 ### 3. Soda Core
@@ -110,7 +110,7 @@ cp extras/data_quality/soda/configuration.yml soda/configuration.yml
 # Edit configuration.yml - choose your platform and set connection details
 
 # Run contracts (schema validation, business rules, integrity checks)
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/soda/contracts/jaffle_shop.yml
 soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/soda/contracts/jaffle_crm.yml
 
@@ -119,7 +119,7 @@ soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/s
 soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/soda/scans/baseline_checks.yml
 
 # Apply delta and validate
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/soda/scans/delta_day1_checks.yml
 
 # Relationship integrity checks (works at any state)
@@ -137,7 +137,7 @@ soda scan -d ingestion_simulator -c soda/configuration.yml extras/data_quality/s
 pip install datacontract-cli
 
 # Validate contracts against actual data
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Test baseline state
 datacontract test extras/data_quality/bitol/contracts/jaffle_shop_customers.yml
@@ -168,14 +168,14 @@ cp extras/vscode/tasks.json .vscode/tasks.json
 # Cmd+Shift+P (Mac) / Ctrl+Shift+P (Windows/Linux) → "Tasks: Run Task"
 
 # Available tasks:
-# - [dbt-demo-source] Load Baseline (Day 0)
-# - [dbt-demo-source] Check Status
-# - [dbt-demo-source] Apply Day 1 Changes
-# - [dbt-demo-source] Apply Day 2 Changes
-# - [dbt-demo-source] Apply Day 3 Changes
-# - [dbt-demo-source] Reset to Baseline
-# - [dbt-demo-source] Full Workflow (Baseline + All 3 Days)
-# - [dbt-demo-source] Verify Baseline Data
+# - [dbt-origin-simulator] Load Baseline (Day 0)
+# - [dbt-origin-simulator] Check Status
+# - [dbt-origin-simulator] Apply Day 1 Changes
+# - [dbt-origin-simulator] Apply Day 2 Changes
+# - [dbt-origin-simulator] Apply Day 3 Changes
+# - [dbt-origin-simulator] Reset to Baseline
+# - [dbt-origin-simulator] Full Workflow (Baseline + All 3 Days)
+# - [dbt-origin-simulator] Verify Baseline Data
 
 # Customize for different targets:
 # Edit .vscode/tasks.json and change --profile ingestion_simulator to your profile
@@ -295,10 +295,10 @@ All examples use `--profile ingestion_simulator` without specifying target (uses
 To use a specific target:
 ```bash
 # MotherDuck
-dbt run-operation demo_load_baseline --profile ingestion_simulator --target motherduck
+dbt run-operation origin_load_baseline --profile ingestion_simulator --target motherduck
 
 # Azure SQL
-dbt run-operation demo_load_baseline --profile ingestion_simulator --target azure
+dbt run-operation origin_load_baseline --profile ingestion_simulator --target azure
 ```
 
 Or override in Makefile/justfile with environment variables:

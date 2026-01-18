@@ -153,7 +153,7 @@ test-<platform>:
     - name: Install dbt-<adapter>
       run: pip install dbt-<adapter>
     - name: Test baseline
-      run: dbt run-operation demo_load_baseline --target <platform>
+      run: dbt run-operation origin_load_baseline --target <platform>
     # ... more tests
 ```
 

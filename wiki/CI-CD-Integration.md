@@ -53,7 +53,7 @@ jobs:
           dbt deps
       
       - name: Load baseline sources
-        run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
       
       - name: Run dbt models
         run: dbt run --profile my_project
@@ -62,7 +62,7 @@ jobs:
         run: dbt test --profile my_project
       
       - name: Apply Day 1 delta
-        run: dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+        run: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
       
       - name: Run incremental models
         run: dbt run --profile my_project
@@ -98,7 +98,7 @@ jobs:
           dbt deps
       
       - name: Load baseline
-        run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
       
       - name: Validate baseline state
         run: |
@@ -110,7 +110,7 @@ jobs:
         run: dbt run --profile my_project
       
       - name: Apply Day 1
-        run: dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+        run: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
       
       - name: Validate Day 1 state
         run: |
@@ -143,7 +143,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install dbt-core dbt-duckdb && dbt deps
-      - run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+      - run: dbt run-operation origin_load_baseline --profile ingestion_simulator
       - run: dbt run --profile my_project
       - run: dbt test --profile my_project
 
@@ -162,12 +162,12 @@ jobs:
       - run: pip install dbt-core dbt-duckdb && dbt deps
       
       - name: Load baseline
-        run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
       
       - name: Apply deltas up to day ${{ matrix.day }}
         run: |
           for day in $(seq 1 ${{ matrix.day }}); do
-            dbt run-operation demo_apply_delta --args "{day: $day}" --profile ingestion_simulator
+            dbt run-operation origin_apply_delta --args "{day: $day}" --profile ingestion_simulator
           done
       
       - name: Run models
@@ -202,7 +202,7 @@ steps:
       dbt deps
     displayName: 'Install dependencies'
 
-  - script: dbt run-operation demo_load_baseline --profile ingestion_simulator
+  - script: dbt run-operation origin_load_baseline --profile ingestion_simulator
     displayName: 'Load baseline sources'
 
   - script: dbt run --profile my_project
@@ -211,7 +211,7 @@ steps:
   - script: dbt test --profile my_project
     displayName: 'Test baseline'
 
-  - script: dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+  - script: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
     displayName: 'Apply Day 1 delta'
 
   - script: dbt run --profile my_project
@@ -241,7 +241,7 @@ stages:
             inputs:
               versionSpec: '3.11'
           - script: pip install dbt-core dbt-duckdb && dbt deps
-          - script: dbt run-operation demo_load_baseline --profile ingestion_simulator
+          - script: dbt run-operation origin_load_baseline --profile ingestion_simulator
           - script: dbt run --profile my_project
           - script: dbt test --profile my_project
 
@@ -254,8 +254,8 @@ stages:
             inputs:
               versionSpec: '3.11'
           - script: pip install dbt-core dbt-duckdb && dbt deps
-          - script: dbt run-operation demo_load_baseline --profile ingestion_simulator
-          - script: dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+          - script: dbt run-operation origin_load_baseline --profile ingestion_simulator
+          - script: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
           - script: dbt run --profile my_project
           - script: dbt test --profile my_project
 ```
@@ -285,17 +285,17 @@ test-pipeline:
   
   script:
     # Baseline
-    - dbt run-operation demo_load_baseline --profile ingestion_simulator
+    - dbt run-operation origin_load_baseline --profile ingestion_simulator
     - dbt run --profile my_project
     - dbt test --profile my_project
     
     # Day 1
-    - dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+    - dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
     - dbt run --profile my_project
     - dbt test --profile my_project
     
     # Day 2
-    - dbt run-operation demo_apply_delta --args '{day: 2}' --profile ingestion_simulator
+    - dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
     - dbt run --profile my_project
     - dbt test --profile my_project
 ```
@@ -359,7 +359,7 @@ ingestion_simulator:
 
 ```yaml
 # CI step
-- run: dbt run-operation demo_load_baseline --profile ingestion_simulator
+- run: dbt run-operation origin_load_baseline --profile ingestion_simulator
   env:
     DBT_TARGET: ci
 ```
@@ -373,7 +373,7 @@ ingestion_simulator:
 Test all states sequentially:
 
 ```bash
-demo_load_baseline → test → apply_delta 1 → test → apply_delta 2 → test → apply_delta 3 → test
+origin_load_baseline → test → apply_delta 1 → test → apply_delta 2 → test → apply_delta 3 → test
 ```
 
 **Pros:** Tests incremental logic across all transitions.

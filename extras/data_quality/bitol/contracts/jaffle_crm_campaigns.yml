@@ -23,7 +23,7 @@ info:
 servers:
   duckdb:
     type: duckdb
-    location: data/demo_source.duckdb
+    location: data/ingestion_simulator.duckdb
     schema: jaffle_crm
   databricks:
     type: databricks

@@ -94,7 +94,7 @@ datacontract export contracts/jaffle_shop_customers.yml --format html > customer
 
 ```bash
 # 1. Load baseline data
-dbt run-operation demo_load_baseline --profile demo_source
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # 2. Validate contracts against baseline state
 datacontract test contracts/jaffle_shop_customers.yml
@@ -102,7 +102,7 @@ datacontract test contracts/jaffle_shop_orders.yml
 datacontract test contracts/jaffle_crm_campaigns.yml
 
 # 3. Apply Day 1 delta
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 
 # 4. Update contract for Day 1 state and revalidate
 # (Or use separate contracts for each delta state)
@@ -180,7 +180,7 @@ jobs:
         run: pip install datacontract-cli
 
       - name: Load baseline data
-        run: dbt run-operation demo_load_baseline --profile demo_source
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
 
       - name: Validate contracts
         run: |

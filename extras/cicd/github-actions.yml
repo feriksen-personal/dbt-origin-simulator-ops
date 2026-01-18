@@ -58,13 +58,13 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          # Demo source system profile (for demo_load_baseline operations)
-          demo_source:
+          # Demo source system profile (for origin_load_baseline operations)
+          ingestion_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'data/demo_source.duckdb'
+                path: 'data/ingestion_simulator.duckdb'
                 threads: 4
 
           # YOUR project profile (customize this for your dbt project)
@@ -82,13 +82,13 @@ jobs:
       - name: Initialize demo source databases
         run: |
           echo "Loading baseline source data..."
-          dbt run-operation demo_load_baseline --profile demo_source
+          dbt run-operation origin_load_baseline --profile ingestion_simulator
 
       # Verify baseline data was loaded correctly
       - name: Verify baseline data
         run: |
           echo "Verifying baseline data..."
-          dbt run-operation demo_verify_baseline --profile demo_source
+          dbt run-operation origin_verify_baseline --profile ingestion_simulator
 
       # Run YOUR dbt models against the demo sources
       - name: Run dbt models
@@ -99,7 +99,7 @@ jobs:
       # Check status of demo sources
       - name: Check demo source status
         run: |
-          dbt run-operation demo_status --profile demo_source
+          dbt run-operation origin_status --profile ingestion_simulator
 
   # ==========================================================================
   # Incremental Testing: Apply deltas and test incremental models
@@ -135,12 +135,12 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          ingestion_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'data/demo_source.duckdb'
+                path: 'data/ingestion_simulator.duckdb'
                 threads: 4
 
           my_project:
@@ -154,7 +154,7 @@ jobs:
 
       # Full workflow: Baseline + Day 1 + Day 2 + Day 3
       - name: Load baseline
-        run: dbt run-operation demo_load_baseline --profile demo_source
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
 
       - name: Initial dbt build (full refresh)
         run: dbt build --profile my_project --full-refresh
@@ -162,7 +162,7 @@ jobs:
       - name: Apply Day 1 changes
         run: |
           echo "Applying Day 1 delta..."
-          dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+          dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 
       - name: Run incremental models (Day 1)
         run: dbt build --profile my_project
@@ -170,7 +170,7 @@ jobs:
       - name: Apply Day 2 changes
         run: |
           echo "Applying Day 2 delta..."
-          dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source
+          dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
 
       - name: Run incremental models (Day 2)
         run: dbt build --profile my_project
@@ -178,13 +178,13 @@ jobs:
       - name: Apply Day 3 changes
         run: |
           echo "Applying Day 3 delta..."
-          dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source
+          dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator
 
       - name: Run incremental models (Day 3)
         run: dbt build --profile my_project
 
       - name: Final status check
-        run: dbt run-operation demo_status --profile demo_source
+        run: dbt run-operation origin_status --profile ingestion_simulator
 
   # ==========================================================================
   # Data Quality Testing: Soda Core integration (optional)
@@ -208,44 +208,44 @@ jobs:
           pip install dbt-core dbt-duckdb soda-core-duckdb
 
       - name: Install dbt packages
-        run: dbt deps --profile demo_source
+        run: dbt deps --profile ingestion_simulator
 
       - name: Create profiles.yml
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          ingestion_simulator:
             target: dev
             outputs:
               dev:
                 type: duckdb
-                path: 'data/demo_source.duckdb'
+                path: 'data/ingestion_simulator.duckdb'
                 threads: 4
           EOF
 
       - name: Load baseline source data
-        run: dbt run-operation demo_load_baseline --profile demo_source
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator
 
       # Run Soda Core quality checks on baseline data
       - name: Run Soda quality checks (jaffle_shop)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/soda/configuration.yml \
             extras/soda/contracts/jaffle_shop.yml
 
       - name: Run Soda quality checks (jaffle_crm)
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/soda/configuration.yml \
             extras/soda/contracts/jaffle_crm.yml
 
       # Apply Day 1 and re-check data quality
       - name: Apply Day 1 changes
-        run: dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+        run: dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 
       - name: Re-run Soda checks after Day 1
         run: |
-          soda scan -d demo_source \
+          soda scan -d ingestion_simulator \
             -c extras/soda/configuration.yml \
             extras/soda/contracts/jaffle_shop.yml
 
@@ -263,7 +263,7 @@ jobs:
         include:
           - platform: duckdb
             dbt_target: dev
-            path: 'data/demo_source.duckdb'
+            path: 'data/ingestion_simulator.duckdb'
           - platform: motherduck
             dbt_target: motherduck
             path: 'md:'
@@ -283,18 +283,18 @@ jobs:
           pip install dbt-core dbt-duckdb
 
       - name: Install dbt packages
-        run: dbt deps --profile demo_source
+        run: dbt deps --profile ingestion_simulator
 
       - name: Create profiles.yml
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << 'EOF'
-          demo_source:
+          ingestion_simulator:
             target: ${{ matrix.dbt_target }}
             outputs:
               dev:
                 type: duckdb
-                path: 'data/demo_source.duckdb'
+                path: 'data/ingestion_simulator.duckdb'
                 threads: 4
               motherduck:
                 type: duckdb
@@ -304,18 +304,18 @@ jobs:
           EOF
 
       - name: Load baseline
-        run: dbt run-operation demo_load_baseline --profile demo_source --target ${{ matrix.dbt_target }}
+        run: dbt run-operation origin_load_baseline --profile ingestion_simulator --target ${{ matrix.dbt_target }}
 
       - name: Verify baseline
-        run: dbt run-operation demo_verify_baseline --profile demo_source --target ${{ matrix.dbt_target }}
+        run: dbt run-operation origin_verify_baseline --profile ingestion_simulator --target ${{ matrix.dbt_target }}
 
       - name: Check status
-        run: dbt run-operation demo_status --profile demo_source --target ${{ matrix.dbt_target }}
+        run: dbt run-operation origin_status --profile ingestion_simulator --target ${{ matrix.dbt_target }}
 
       # Cleanup MotherDuck databases (only for cloud testing)
       - name: Cleanup MotherDuck databases
         if: matrix.platform == 'motherduck'
-        run: dbt run-operation demo_reset --profile demo_source --target motherduck
+        run: dbt run-operation origin_reset --profile ingestion_simulator --target motherduck
 
 # ==========================================================================
 # Configuration Notes

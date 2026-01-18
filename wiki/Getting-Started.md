@@ -76,7 +76,7 @@ ingestion_simulator:
 mkdir -p data
 ```
 
-The databases (`jaffle_shop`, `jaffle_crm`) are created automatically as schemas when you run `demo_load_baseline`.
+The databases (`jaffle_shop`, `jaffle_crm`) are created automatically as schemas when you run `origin_load_baseline`.
 
 ---
 
@@ -170,9 +170,9 @@ pip install dbt-sqlserver
 **Set environment variables:**
 
 ```bash
-export DEMO_SQL_SERVER=your-server-name
-export DEMO_SQL_USER=sqladmin
-export DEMO_SQL_PASSWORD=your-password
+export SQL_SERVER=your-server-name
+export SQL_USER=sqladmin
+export SQL_PASSWORD=your-password
 ```
 
 **Configure profile** (`~/.dbt/profiles.yml`):
@@ -183,10 +183,10 @@ ingestion_simulator:
   outputs:
     azure:
       type: sqlserver
-      server: "{{ env_var('DEMO_SQL_SERVER') }}.database.windows.net"
+      server: "{{ env_var('SQL_SERVER') }}.database.windows.net"
       database: master
-      user: "{{ env_var('DEMO_SQL_USER') }}"
-      password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
+      user: "{{ env_var('SQL_USER') }}"
+      password: "{{ env_var('SQL_PASSWORD') }}"
       encrypt: true
       trust_cert: false
 ```
@@ -198,7 +198,7 @@ ingestion_simulator:
 **Load baseline data:**
 
 ```bash
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 ```
 
 Or use the **`[dbt-origin-simulator]: Load Baseline`** VS Code action — see [Extras](Extras) for setup.
@@ -210,7 +210,7 @@ This creates the source databases and loads baseline data:
 **Check status:**
 
 ```bash
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 Or use the **`[dbt-origin-simulator]: Check Status`** VS Code action.
@@ -218,7 +218,7 @@ Or use the **`[dbt-origin-simulator]: Check Status`** VS Code action.
 **Apply incremental changes:**
 
 ```bash
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 ```
 
 Or use the **`[dbt-origin-simulator]: Apply Delta Day 1`** VS Code action.
@@ -228,7 +228,7 @@ Each delta introduces new records, updates existing ones, and soft-deletes other
 **Reset to baseline:**
 
 ```bash
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 Or use the **`[dbt-origin-simulator]: Reset to Baseline`** VS Code action.
@@ -253,7 +253,7 @@ You should see `Connection test: OK`.
 
 You can insert custom data directly into source tables for specific test scenarios. Be mindful of primary key collisions with package-managed data — this is on you to manage.
 
-Run `demo_reset` anytime to return to a known valid baseline state.
+Run `origin_reset` anytime to return to a known valid baseline state.
 
 ---
 

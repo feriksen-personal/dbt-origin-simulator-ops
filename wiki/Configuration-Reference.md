@@ -108,12 +108,12 @@ ingestion_simulator:
   outputs:
     azure:
       type: sqlserver
-      server: "{{ env_var('DEMO_SQL_SERVER') }}.database.windows.net"
+      server: "{{ env_var('SQL_SERVER') }}.database.windows.net"
       port: 1433
       database: master
       schema: dbo
-      user: "{{ env_var('DEMO_SQL_USER') }}"
-      password: "{{ env_var('DEMO_SQL_PASSWORD') }}"
+      user: "{{ env_var('SQL_USER') }}"
+      password: "{{ env_var('SQL_PASSWORD') }}"
       driver: "ODBC Driver 18 for SQL Server"
       encrypt: true
       trust_cert: false
@@ -157,44 +157,44 @@ Recommended environment variables for each platform:
 
 | Variable | Description |
 |----------|-------------|
-| `DEMO_SQL_SERVER` | Server name (without `.database.windows.net`) |
-| `DEMO_SQL_USER` | SQL admin username |
-| `DEMO_SQL_PASSWORD` | SQL admin password |
+| `SQL_SERVER` | Server name (without `.database.windows.net`) |
+| `SQL_USER` | SQL admin username |
+| `SQL_PASSWORD` | SQL admin password |
 
 ---
 
 ## Operation Parameters
 
-### demo_load_baseline
+### origin_load_baseline
 
 ```bash
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 ```
 
 No parameters. Creates schemas and loads baseline data.
 
-### demo_apply_delta
+### origin_apply_delta
 
 ```bash
-dbt run-operation demo_apply_delta --args '{day: N}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: N}' --profile ingestion_simulator
 ```
 
 | Parameter | Required | Values | Description |
 |-----------|----------|--------|-------------|
 | `day` | Yes | `1`, `2`, or `3` | Which delta to apply |
 
-### demo_reset
+### origin_reset
 
 ```bash
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 No parameters. Truncates all tables and reloads baseline.
 
-### demo_status
+### origin_status
 
 ```bash
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 No parameters. Displays current row counts.
@@ -228,9 +228,9 @@ data_source ingestion_simulator:
 # SQL Server
 data_source ingestion_simulator:
   type: sqlserver
-  host: ${DEMO_SQL_SERVER}.database.windows.net
-  username: ${DEMO_SQL_USER}
-  password: ${DEMO_SQL_PASSWORD}
+  host: ${SQL_SERVER}.database.windows.net
+  username: ${SQL_USER}
+  password: ${SQL_PASSWORD}
   database: jaffle_shop
 ```
 
@@ -246,7 +246,7 @@ The tasks use `ingestion_simulator` as the profile name. If you use a different 
 {
   "label": "[dbt-origin-simulator]: Load Baseline",
   "type": "shell",
-  "command": "dbt run-operation demo_load_baseline --profile YOUR_PROFILE_NAME"
+  "command": "dbt run-operation origin_load_baseline --profile YOUR_PROFILE_NAME"
 }
 ```
 

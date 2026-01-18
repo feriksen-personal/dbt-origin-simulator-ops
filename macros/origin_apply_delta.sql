@@ -8,9 +8,9 @@
     day (int): Day number (1, 2, or 3) - which delta to apply
 
   Usage:
-    dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
-    dbt run-operation demo_apply_delta --args '{day: 2}' --profile demo_source
-    dbt run-operation demo_apply_delta --args '{day: 3}' --profile demo_source
+    dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
+    dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
+    dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator
 
   Example output:
     Applying Day 01 delta changes...
@@ -30,12 +30,12 @@
     ══════════════════════════
 #}
 
-{% macro demo_apply_delta(day) %}
+{% macro origin_apply_delta(day) %}
   {% set cfg = origin_simulator_ops._get_config() %}
 
   {# Validate day parameter #}
   {% if day is none %}
-    {{ exceptions.raise_compiler_error("Parameter 'day' is required. Usage: dbt run-operation demo_apply_delta --args '{day: 1}'") }}
+    {{ exceptions.raise_compiler_error("Parameter 'day' is required. Usage: dbt run-operation origin_apply_delta --args '{day: 1}'") }}
   {% endif %}
 
   {% if day not in [1, 2, 3] %}
@@ -99,5 +99,5 @@
   {{ origin_simulator_ops._log("") }}
 
   {# Show updated status #}
-  {{ origin_simulator_ops.demo_status() }}
+  {{ origin_simulator_ops.origin_status() }}
 {% endmacro %}

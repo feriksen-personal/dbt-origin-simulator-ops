@@ -10,10 +10,10 @@ Four operations to control your source databases:
 
 | Operation | Purpose | When to Use |
 |-----------|---------|-------------|
-| **demo_load_baseline** | Initialize databases with Day 0 seed data | First-time setup, creating fresh environment |
-| **demo_apply_delta** | Apply incremental changes for day 1/2/3 | Simulating business activity, CDC demos |
-| **demo_reset** | Truncate all tables and reload baseline | Starting fresh, cleaning up after testing |
-| **demo_status** | Display current row counts | Quick verification, checking state |
+| **origin_load_baseline** | Initialize databases with Day 0 seed data | First-time setup, creating fresh environment |
+| **origin_apply_delta** | Apply incremental changes for day 1/2/3 | Simulating business activity, CDC demos |
+| **origin_reset** | Truncate all tables and reload baseline | Starting fresh, cleaning up after testing |
+| **origin_status** | Display current row counts | Quick verification, checking state |
 
 All operations are executed via `dbt run-operation` and automatically display status at completion.
 
@@ -86,7 +86,7 @@ See [Data Schemas](Data-Schemas) for complete table structures and relationships
 
 ---
 
-## demo_load_baseline
+## origin_load_baseline
 
 Initializes source databases with baseline schema and data (Day 0 state).
 
@@ -113,7 +113,7 @@ Initializes source databases with baseline schema and data (Day 0 state).
 ### Usage
 
 ```bash
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 ```
 
 ### Behavior Details
@@ -176,11 +176,11 @@ This operation is **safe to run multiple times**:
 - For DuckDB: Re-inserts data (may cause duplicates if data already exists)
 - For Azure SQL: Uses `MERGE` to upsert (no duplicates)
 
-**Best Practice**: Use `demo_reset` instead of re-running `demo_load_baseline` if data already exists.
+**Best Practice**: Use `origin_reset` instead of re-running `origin_load_baseline` if data already exists.
 
 ---
 
-## demo_apply_delta
+## origin_apply_delta
 
 ### What It Does
 
@@ -205,13 +205,13 @@ Each day includes:
 
 ```bash
 # Apply Day 1 changes
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 
 # Apply Day 2 changes
-dbt run-operation demo_apply_delta --args '{day: 2}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
 
 # Apply Day 3 changes
-dbt run-operation demo_apply_delta --args '{day: 3}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator
 ```
 
 **Important**: Must specify `day` parameter (1, 2, or 3)
@@ -393,11 +393,11 @@ jaffle_crm:
    - **Valid values**: 1, 2, or 3
 
 3. **Skipping baseline**: Running deltas without baseline
-   - **Solution**: Run `demo_load_baseline` first
+   - **Solution**: Run `origin_load_baseline` first
 
 ---
 
-## demo_reset
+## origin_reset
 
 ### What It Does
 
@@ -413,14 +413,14 @@ Truncates all tables in both databases and reloads baseline data, returning to D
 ### Usage
 
 ```bash
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 ### Behavior Details
 
 1. **Truncates ALL tables**: Removes ALL data (including custom data with IDs 5000+)
 2. **Preserves table structures**: Tables and columns remain
-3. **Reloads baseline**: Calls `demo_load_baseline` internally
+3. **Reloads baseline**: Calls `origin_load_baseline` internally
 4. **Foreign key order**: Truncates in reverse FK order to avoid constraint violations
 
 ### Expected Output
@@ -492,11 +492,11 @@ This operation is **destructive** and **cannot be undone**:
 - No backup is created
 - No confirmation prompt
 
-**Best Practice**: If you have important custom data, export it first or don't use `demo_reset`.
+**Best Practice**: If you have important custom data, export it first or don't use `origin_reset`.
 
 ---
 
-## demo_status
+## origin_status
 
 ### What It Shows
 
@@ -512,7 +512,7 @@ Displays current row counts for all tables in both databases.
 ### Usage
 
 ```bash
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 ### Expected Output
@@ -577,52 +577,52 @@ Higher-than-expected counts indicate custom data (IDs 5000+) has been added.
 dbt deps
 
 # Load baseline data
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Verify
-dbt run-operation demo_status --profile ingestion_simulator
+dbt run-operation origin_status --profile ingestion_simulator
 ```
 
 ### Workflow 2: Multi-Day Demo
 
 ```bash
 # Start at baseline
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Progress through days
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 # ... demonstrate Day 1 state ...
 
-dbt run-operation demo_apply_delta --args '{day: 2}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
 # ... demonstrate Day 2 state ...
 
-dbt run-operation demo_apply_delta --args '{day: 3}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 3}' --profile ingestion_simulator
 # ... demonstrate Day 3 state ...
 
 # Reset for next demo
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 ### Workflow 3: CDC/Change Tracking Demo
 
 ```bash
 # Baseline (before CDC enabled)
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 # Enable CDC on Azure SQL
 # (run your CDC setup scripts here)
 
 # Apply Day 1 - triggers CDC
-dbt run-operation demo_apply_delta --args '{day: 1}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 1}' --profile ingestion_simulator
 
 # Query CDC tables to show captured changes
 # (your CDC queries here)
 
 # Apply Day 2 - more CDC changes
-dbt run-operation demo_apply_delta --args '{day: 2}' --profile ingestion_simulator
+dbt run-operation origin_apply_delta --args '{day: 2}' --profile ingestion_simulator
 
 # Reset when done
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 ```
 
 ### Workflow 4: CI/CD Integration
@@ -632,13 +632,13 @@ dbt run-operation demo_reset --profile ingestion_simulator
 - name: Setup source data
   run: |
     dbt deps
-    dbt run-operation demo_load_baseline --profile ingestion_simulator
+    dbt run-operation origin_load_baseline --profile ingestion_simulator
 
 - name: Run tests
   run: dbt test
 
 - name: Teardown
-  run: dbt run-operation demo_reset --profile ingestion_simulator
+  run: dbt run-operation origin_reset --profile ingestion_simulator
   if: always()
 ```
 
@@ -646,11 +646,11 @@ dbt run-operation demo_reset --profile ingestion_simulator
 
 ```bash
 # Morning session
-dbt run-operation demo_load_baseline --profile ingestion_simulator
+dbt run-operation origin_load_baseline --profile ingestion_simulator
 # ... training on baseline state ...
 
 # Afternoon session (same day)
-dbt run-operation demo_reset --profile ingestion_simulator
+dbt run-operation origin_reset --profile ingestion_simulator
 # Fresh start for afternoon participants
 ```
 
@@ -660,10 +660,10 @@ dbt run-operation demo_reset --profile ingestion_simulator
 
 | Operation | Changes Data | Requires Baseline | Idempotent | Destructive |
 |-----------|--------------|-------------------|------------|-------------|
-| **demo_load_baseline** | ✅ Inserts | ❌ No | ⚠️ Partial* | ❌ No |
-| **demo_apply_delta** | ✅ Inserts/Updates | ⚠️ Yes** | ❌ No | ❌ No |
-| **demo_reset** | ✅ Truncates/Inserts | ❌ No | ✅ Yes | ⚠️ Yes*** |
-| **demo_status** | ❌ Read-only | ⚠️ Yes**** | ✅ Yes | ❌ No |
+| **origin_load_baseline** | ✅ Inserts | ❌ No | ⚠️ Partial* | ❌ No |
+| **origin_apply_delta** | ✅ Inserts/Updates | ⚠️ Yes** | ❌ No | ❌ No |
+| **origin_reset** | ✅ Truncates/Inserts | ❌ No | ✅ Yes | ⚠️ Yes*** |
+| **origin_status** | ❌ Read-only | ⚠️ Yes**** | ✅ Yes | ❌ No |
 
 \* Idempotent for schema creation, but data may duplicate in DuckDB
 \*\* Technically works without baseline, but foreign keys may fail
