@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![dbt Core](https://img.shields.io/badge/dbt_Core-%3E%3D1.10.0-orange.svg)](https://docs.getdbt.com/docs/introduction)
 [![dbt-duckdb](https://img.shields.io/badge/dbt--duckdb-%3E%3D1.10.0-blue.svg)](https://github.com/duckdb/dbt-duckdb)
+[![dbt-databricks](https://img.shields.io/badge/dbt--databricks-%3E%3D1.10.0-blue.svg)](https://github.com/databricks/dbt-databricks)
 [![dbt-sqlserver](https://img.shields.io/badge/dbt--sqlserver-%3E%3D1.10.0-blue.svg)](https://github.com/dbt-msft/dbt-sqlserver)
 
 **Control plane for managing stable, versioned source system emulations** - Four simple operations: load baseline, apply deltas, reset, and check status.
@@ -32,7 +33,16 @@
 - Same DuckDB experience, cloud-hosted
 - Perfect for distributed teams and remote demos
 
-### 3. Cloud Demos & POCs (Azure SQL)
+### 3. Lakehouse Workflows (Databricks)
+
+**Unity Catalog and Delta Lake patterns:**
+
+- Databricks SQL Warehouse sources with Delta Lake tables
+- Test lakehouse ingestion patterns and Lakeflow Connect
+- Practice Unity Catalog governance workflows
+- Rich metadata with column comments, schema descriptions, and catalog tags
+
+### 4. Cloud Demos & POCs (Azure SQL)
 
 **Enterprise database patterns with CDC:**
 
@@ -40,15 +50,6 @@
 - Demonstrate incremental loads, SCD Type 2, CDC workflows
 - Infrastructure provisioned via [dbt-origin-simulator-infra](https://github.com/feriksen-personal/dbt-origin-simulator-infra)
 - **Note:** For demo/POC purposes only, not production
-
-### 4. Lakehouse Workflows (Databricks)
-
-**Unity Catalog and Delta Lake patterns:**
-
-- Databricks SQL Warehouse sources
-- Test lakehouse ingestion patterns and Lakeflow Connect
-- Practice Unity Catalog governance workflows
-- **Status:** Coming soon (Issue #59)
 
 ---
 
@@ -72,7 +73,7 @@ While built with dbt operations for convenience, the managed source databases ca
 - 🔄 **Reproducible** - Reset to baseline instantly for consistent state
 - 📊 **Realistic Data** - Two source systems (ERP + CRM) with proper relationships
 - 🎯 **Four Simple Operations** - `load_baseline`, `apply_delta`, `reset`, `status`
-- 🌐 **Multi-Platform** - DuckDB, MotherDuck, Azure SQL, Databricks (coming soon)
+- 🌐 **Multi-Platform** - DuckDB, MotherDuck, Databricks, Azure SQL
 - 💰 **Cost Effective** - Free tier options for all platforms
 - 📈 **Production Patterns** - CDC, SCD Type 2, soft deletes, incremental loads
 - 🔧 **Tool Agnostic** - Use with dbt, Spark, Python, Fivetran, or any data tool
@@ -87,8 +88,8 @@ See the [wiki](https://github.com/feriksen-personal/dbt-origin-simulator-ops/wik
 |-----------------|-----------------------------------|-----------|---------------------|
 | **DuckDB**      | Local development, CI/CD          | ✅ Free   | ✅ Fully supported  |
 | **MotherDuck**  | Cloud collaboration, remote demos | ✅ Free   | ✅ Fully supported  |
+| **Databricks**  | Unity Catalog, Delta Lake         | ✅ Free   | ✅ Fully supported  |
 | **Azure SQL**   | CDC patterns, change tracking     | ✅ Free   | ⚠️ In development   |
-| **Databricks**  | Unity Catalog, Delta Lake         | ✅ Free   | 🔜 Planned (#59)    |
 
 ---
 
@@ -133,8 +134,8 @@ That's it! 🎉 **[See all operations →](https://github.com/feriksen-personal/
 - **dbt Core** >= 1.10.0
 - **Adapter** (choose one or more):
   - **dbt-duckdb** >= 1.10.0 for DuckDB and MotherDuck
+  - **dbt-databricks** >= 1.10.0 for Databricks
   - **dbt-sqlserver** >= 1.10.0 for Azure SQL
-  - **dbt-databricks** >= 1.10.0 for Databricks (coming soon)
 
 **Optional:**
 
@@ -187,6 +188,34 @@ Get your token at [motherduck.com/settings/tokens](https://motherduck.com/settin
 ```bash
 export MOTHERDUCK_TOKEN=your-token-here
 ```
+
+**Databricks (cloud):**
+
+```yaml
+# profiles.yml
+demo_source:
+  target: databricks
+  outputs:
+    databricks:
+      type: databricks
+      host: "{{ env_var('DATABRICKS_SERVER_HOSTNAME') }}"
+      http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN') }}"
+      catalog: "{{ env_var('DATABRICKS_CATALOG') }}"
+      schema: default
+      threads: 4
+```
+
+Set environment variables:
+
+```bash
+export DATABRICKS_SERVER_HOSTNAME=your-workspace.cloud.databricks.com
+export DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
+export DATABRICKS_TOKEN=your-personal-access-token
+export DATABRICKS_CATALOG=main
+```
+
+Get your token from **User Settings → Developer → Access tokens** in your Databricks workspace.
 
 **Azure SQL (cloud):**
 
@@ -260,8 +289,8 @@ dbt-origin-simulator-ops/
 ├── macros/              # Four operations: load_baseline, apply_delta, reset, status
 ├── data/
 │   ├── duckdb/         # DuckDB/MotherDuck SQL files (baseline, deltas, utilities)
-│   ├── azure/          # Azure SQL files (in development)
-│   └── databricks/     # Databricks SQL files (planned)
+│   ├── databricks/     # Databricks SQL files (Unity Catalog, Delta Lake)
+│   └── azure/          # Azure SQL files (in development)
 ├── extras/              # Optional templates for your project
 │   ├── dbt/            # sources.yml, profiles.yml examples
 │   ├── soda/           # Data quality contracts
