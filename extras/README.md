@@ -93,12 +93,45 @@ dbt run-operation demo_load_baseline --profile demo_source --target motherduck
 ### 3. Soda Core
 
 ```bash
-# Install Soda Core
-pip install soda-core-duckdb
+# Install Soda Core for your platform
+pip install soda-core-duckdb              # For DuckDB/MotherDuck
+pip install soda-core-sqlserver           # For Azure SQL
 
-# Run data quality checks
+# Copy configuration file (or customize inline)
+cp extras/soda/configuration.yml soda/configuration.yml
+
+# Edit configuration.yml:
+# - For DuckDB: Uncomment the DuckDB section, set path to your .duckdb file
+# - For MotherDuck: Uncomment MotherDuck section, set MOTHERDUCK_TOKEN env var
+# - For Azure SQL: Uncomment Azure SQL section, set environment variables
+
+# Run data quality checks after loading baseline
+dbt run-operation demo_load_baseline --profile demo_source
 soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
 soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+
+# Run checks after applying deltas to verify data evolution
+dbt run-operation demo_apply_delta --args '{day: 1}' --profile demo_source
+soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+
+# What gets validated:
+# - Schema: Column presence, data types, nullability
+# - Foreign keys: All relationships between tables
+# - Business rules: Positive quantities, valid prices, logical sequences
+# - SLA/Freshness: Data is within expected time windows (60 days)
+# - Soft deletes: Most records active, valid deleted_at when present
+# - Duplicates: Primary keys are unique
+
+# For Azure SQL, scan each database separately:
+# 1. Set configuration.yml to database: jaffle_shop, schema: erp
+#    soda scan -d demo_source -c configuration.yml contracts/jaffle_shop.yml
+#
+# 2. Set configuration.yml to database: jaffle_crm, schema: crm
+#    soda scan -d demo_source -c configuration.yml contracts/jaffle_crm.yml
+
+# Optional: Connect to Soda Cloud for dashboards and alerts
+# - Sign up at https://cloud.soda.io
+# - Add soda_cloud section to configuration.yml with API keys
 ```
 
 ### 4. VS Code Tasks

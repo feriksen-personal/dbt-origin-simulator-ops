@@ -1,0 +1,114 @@
+# Soda Core Configuration for dbt-demo-source-ops
+#
+# This file configures data sources for Soda Core data quality checks.
+# Copy and customize for your environment.
+#
+# Usage:
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+#
+# Installation:
+#   pip install soda-core-duckdb              # For DuckDB/MotherDuck
+#   pip install soda-core-sqlserver           # For Azure SQL
+#
+# Documentation: https://docs.soda.io/soda-core/overview-main.html
+
+# ============================================================================
+# DuckDB (Local) - Default Configuration
+# ============================================================================
+# Use case: Local development, testing data quality checks
+# Database files: Relative path to your DuckDB file
+#
+# Uncomment this section to use DuckDB:
+data_source demo_source:
+  type: duckdb
+  path: data/duckdb/demo_source.duckdb
+  schema: erp  # Default schema for jaffle_shop tables
+
+# ============================================================================
+# MotherDuck (Cloud) - Collaborative Development
+# ============================================================================
+# Use case: Cloud collaboration, shared databases
+# Requirements:
+#   - MotherDuck account: https://motherduck.com
+#   - Service token: https://motherduck.com (Settings → Service Tokens)
+#   - Set environment variable: export MOTHERDUCK_TOKEN=your-token
+#
+# Uncomment this section to use MotherDuck:
+# data_source demo_source:
+#   type: duckdb
+#   path: md:
+#   token: ${MOTHERDUCK_TOKEN}
+#   schema: erp  # Default schema for jaffle_shop tables
+
+# ============================================================================
+# Azure SQL - Production-like Cloud Demos
+# ============================================================================
+# Use case: Cloud demos, CDC demonstrations
+# Requirements:
+#   - Azure SQL database provisioned
+#   - Firewall rules configured
+#   - Set environment variables:
+#       export DEMO_SQL_SERVER=your-server-name
+#       export DEMO_SQL_USER=your-username
+#       export DEMO_SQL_PASSWORD=your-password
+#
+# Uncomment this section to use Azure SQL:
+# data_source demo_source:
+#   type: sqlserver
+#   host: ${DEMO_SQL_SERVER}.database.windows.net
+#   port: 1433
+#   username: ${DEMO_SQL_USER}
+#   password: ${DEMO_SQL_PASSWORD}
+#   database: jaffle_shop  # Scans one database at a time
+#   schema: erp
+#   driver: ODBC Driver 18 for SQL Server
+#   encrypt: true
+#   trust_server_certificate: false
+
+# ============================================================================
+# Soda Cloud Integration (Optional)
+# ============================================================================
+# Connect to Soda Cloud for dashboards, alerts, and collaboration
+# Requirements:
+#   - Soda Cloud account: https://cloud.soda.io
+#   - API keys from Soda Cloud (Settings → API Keys)
+#
+# Uncomment and configure:
+# soda_cloud:
+#   host: cloud.soda.io
+#   api_key_id: ${SODA_CLOUD_API_KEY_ID}
+#   api_key_secret: ${SODA_CLOUD_API_KEY_SECRET}
+
+# ============================================================================
+# Notes for Multi-Database Scanning (Azure SQL)
+# ============================================================================
+#
+# For Azure SQL, you need to scan jaffle_shop and jaffle_crm separately:
+#
+# 1. Scan jaffle_shop:
+#    - Set database: jaffle_shop, schema: erp
+#    - Run: soda scan -d demo_source -c configuration.yml contracts/jaffle_shop.yml
+#
+# 2. Scan jaffle_crm:
+#    - Update configuration: database: jaffle_crm, schema: crm
+#    - Run: soda scan -d demo_source -c configuration.yml contracts/jaffle_crm.yml
+#
+# For DuckDB/MotherDuck, you can reference both databases in a single scan:
+#    - Use fully qualified names: jaffle_shop.erp.customers, jaffle_crm.crm.campaigns
+#    - Or set default schema and use database prefixes in contract files
+#
+# ============================================================================
+# Troubleshooting
+# ============================================================================
+#
+# Issue: "Connection failed"
+# Solution: Verify environment variables are set, check network connectivity
+#
+# Issue: "Schema not found"
+# Solution: Ensure schema matches your setup (erp for jaffle_shop, crm for jaffle_crm)
+#
+# Issue: "ODBC Driver 18 not found" (Azure SQL)
+# Solution: Install driver from https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
+#
+# For more help: https://github.com/feriksen-personal/dbt-demo-source-ops/wiki/Troubleshooting

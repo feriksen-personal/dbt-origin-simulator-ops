@@ -1,0 +1,296 @@
+# Soda Core Data Contracts for jaffle_shop Database
+#
+# This file defines data quality checks for the jaffle_shop e-commerce database.
+# Run these checks after loading baseline or applying deltas to verify data integrity.
+#
+# Usage:
+#   # DuckDB/MotherDuck:
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+#
+#   # Azure SQL (ensure configuration.yml has database: jaffle_shop):
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_shop.yml
+#
+# Expected row counts:
+#   Baseline (Day 0): customers=100, products=20, orders=500, order_items=1200, payments=0
+#   Day 1: customers=125, orders=560, order_items=1303, payments=272
+#   Day 2: customers=147, orders=615, order_items=1387, payments=316
+#   Day 3: customers=175, orders=680, order_items=1502, payments=374
+
+# ============================================================================
+# Table: customers
+# ============================================================================
+# Customer master data with email tracking and soft deletes
+
+checks for customers:
+  # Schema validation - Primary key
+  - schema:
+      fail:
+        when required column missing: [customer_id, first_name, last_name, email]
+        when wrong column type:
+          customer_id: integer
+          first_name: varchar
+          last_name: varchar
+          email: varchar
+
+  # Row count validation (baseline minimum)
+  - row_count >= 100
+
+  # Duplicate detection
+  - duplicate_count(customer_id) = 0:
+      name: Customers have unique IDs
+  - duplicate_count(email) = 0:
+      name: Customers have unique email addresses
+
+  # Null validation - Core fields must be populated
+  - missing_count(customer_id) = 0
+  - missing_count(first_name) = 0
+  - missing_count(last_name) = 0
+  - missing_count(email) = 0
+
+  # Email format validation
+  - invalid_count(email) = 0:
+      valid format: email
+      name: All customer emails are valid format
+
+  # Soft delete validation
+  - missing_percent(deleted_at) >= 80:
+      name: Most customers should be active (deleted_at is NULL)
+
+  # Timestamp validation
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+  - invalid_count(deleted_at) = 0:
+      valid format: date
+      name: deleted_at is valid date when present
+
+# ============================================================================
+# Table: products
+# ============================================================================
+# Product catalog with pricing
+
+checks for products:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [product_id, name, price, category]
+        when wrong column type:
+          product_id: integer
+          name: varchar
+          price: decimal
+          category: varchar
+
+  # Row count validation
+  - row_count = 20:
+      name: Product catalog has exactly 20 products
+
+  # Duplicate detection
+  - duplicate_count(product_id) = 0:
+      name: Products have unique IDs
+
+  # Null validation
+  - missing_count(product_id) = 0
+  - missing_count(name) = 0
+  - missing_count(price) = 0
+  - missing_count(category) = 0
+
+  # Business rule: Prices must be non-negative
+  - failed rows:
+      fail condition: price < 0
+      name: All product prices are non-negative
+
+  # Category validation
+  - invalid_count(category) = 0:
+      valid values: ['Coffee', 'Tea', 'Pastries', 'Merchandise']
+      name: All products have valid categories
+
+  # Timestamp validation
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+# ============================================================================
+# Table: orders
+# ============================================================================
+# Customer orders with status tracking
+
+checks for orders:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [order_id, customer_id, order_date, status]
+        when wrong column type:
+          order_id: integer
+          customer_id: integer
+          order_date: date
+          status: varchar
+
+  # Row count validation (baseline minimum)
+  - row_count >= 500
+
+  # Duplicate detection
+  - duplicate_count(order_id) = 0:
+      name: Orders have unique IDs
+
+  # Null validation
+  - missing_count(order_id) = 0
+  - missing_count(customer_id) = 0
+  - missing_count(order_date) = 0
+  - missing_count(status) = 0
+
+  # Foreign key integrity: All orders reference valid customers
+  - failed rows:
+      fail query: |
+        SELECT o.order_id, o.customer_id
+        FROM orders o
+        LEFT JOIN customers c ON o.customer_id = c.customer_id
+        WHERE c.customer_id IS NULL
+      name: All orders have valid customer_id foreign keys
+
+  # Status validation
+  - invalid_count(status) = 0:
+      valid values: ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
+      name: All orders have valid status values
+
+  # Timestamp validation
+  - invalid_count(order_date) = 0:
+      valid format: date
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+
+  # SLA/Freshness check: Orders should be recent (within 60 days for full workflow)
+  - freshness(order_date) < 60d:
+      name: Orders are within expected time window
+
+# ============================================================================
+# Table: order_items
+# ============================================================================
+# Line items for orders with quantities and pricing
+
+checks for order_items:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [order_item_id, order_id, product_id, quantity, unit_price]
+        when wrong column type:
+          order_item_id: integer
+          order_id: integer
+          product_id: integer
+          quantity: integer
+          unit_price: decimal
+
+  # Row count validation (baseline minimum)
+  - row_count >= 1200
+
+  # Duplicate detection
+  - duplicate_count(order_item_id) = 0:
+      name: Order items have unique IDs
+
+  # Null validation
+  - missing_count(order_item_id) = 0
+  - missing_count(order_id) = 0
+  - missing_count(product_id) = 0
+  - missing_count(quantity) = 0
+  - missing_count(unit_price) = 0
+
+  # Foreign key integrity: All order items reference valid orders
+  - failed rows:
+      fail query: |
+        SELECT oi.order_item_id, oi.order_id
+        FROM order_items oi
+        LEFT JOIN orders o ON oi.order_id = o.order_id
+        WHERE o.order_id IS NULL
+      name: All order items have valid order_id foreign keys
+
+  # Foreign key integrity: All order items reference valid products
+  - failed rows:
+      fail query: |
+        SELECT oi.order_item_id, oi.product_id
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.product_id
+        WHERE p.product_id IS NULL
+      name: All order items have valid product_id foreign keys
+
+  # Business rules
+  - failed rows:
+      fail condition: quantity <= 0
+      name: All order item quantities are positive
+  - failed rows:
+      fail condition: unit_price < 0
+      name: All order item prices are non-negative
+
+  # Timestamp validation
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+# ============================================================================
+# Table: payments
+# ============================================================================
+# Payment records for orders
+
+checks for payments:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [payment_id, order_id, payment_method, amount]
+        when wrong column type:
+          payment_id: integer
+          order_id: integer
+          payment_method: varchar
+          amount: decimal
+
+  # Note: Baseline has 0 payments, so row count checks are conditional
+  # Row count validation (if payments exist)
+  - row_count >= 0:
+      name: Payments table exists and is queryable
+
+  # Duplicate detection (when payments exist)
+  - duplicate_count(payment_id) = 0:
+      name: Payments have unique IDs
+
+  # Null validation (core fields must be populated when records exist)
+  - missing_count(payment_id) = 0
+  - missing_count(order_id) = 0
+  - missing_count(payment_method) = 0
+  - missing_count(amount) = 0
+
+  # Foreign key integrity: All payments reference valid orders
+  - failed rows:
+      fail query: |
+        SELECT p.payment_id, p.order_id
+        FROM payments p
+        LEFT JOIN orders o ON p.order_id = o.order_id
+        WHERE o.order_id IS NULL
+      name: All payments have valid order_id foreign keys
+
+  # Payment method validation
+  - invalid_count(payment_method) = 0:
+      valid values: ['credit_card', 'debit_card', 'bank_transfer', 'gift_card']
+      name: All payments have valid payment methods
+
+  # Business rule: Payment amounts must be positive
+  - failed rows:
+      fail condition: amount <= 0
+      name: All payment amounts are positive
+
+  # Timestamp validation
+  - invalid_count(payment_date) = 0:
+      valid format: date
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+  # SLA/Freshness check: Payments should be recent (within 60 days for full workflow)
+  - freshness(payment_date) < 60d:
+      name: Payments are within expected time window

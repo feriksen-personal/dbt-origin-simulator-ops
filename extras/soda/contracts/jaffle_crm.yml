@@ -1,0 +1,240 @@
+# Soda Core Data Contracts for jaffle_crm Database
+#
+# This file defines data quality checks for the jaffle_crm marketing database.
+# Run these checks after loading baseline or applying deltas to verify data integrity.
+#
+# Usage:
+#   # DuckDB/MotherDuck:
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+#
+#   # Azure SQL (update configuration.yml to use database: jaffle_crm, schema: crm):
+#   soda scan -d demo_source -c extras/soda/configuration.yml extras/soda/contracts/jaffle_crm.yml
+#
+# Expected row counts:
+#   Baseline (Day 0): campaigns=5, email_activity=2500, web_sessions=1000
+#   Day 1: campaigns=5, email_activity=2575, web_sessions=1037
+#   Day 2: campaigns=5, email_activity=2641, web_sessions=1073
+#   Day 3: campaigns=5, email_activity=2717, web_sessions=1112
+
+# ============================================================================
+# Table: campaigns
+# ============================================================================
+# Marketing campaign master data
+
+checks for campaigns:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [campaign_id, name, channel, start_date]
+        when wrong column type:
+          campaign_id: integer
+          name: varchar
+          channel: varchar
+          start_date: date
+
+  # Row count validation
+  - row_count = 5:
+      name: Campaign catalog has exactly 5 campaigns
+
+  # Duplicate detection
+  - duplicate_count(campaign_id) = 0:
+      name: Campaigns have unique IDs
+
+  # Null validation
+  - missing_count(campaign_id) = 0
+  - missing_count(name) = 0
+  - missing_count(channel) = 0
+  - missing_count(start_date) = 0
+
+  # Channel validation
+  - invalid_count(channel) = 0:
+      valid values: ['email', 'social', 'display', 'search']
+      name: All campaigns have valid channels
+
+  # Timestamp validation
+  - invalid_count(start_date) = 0:
+      valid format: date
+  - invalid_count(end_date) = 0:
+      valid format: date
+      name: end_date is valid date when present
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+  # Business rule: End date should be after start date (when present)
+  - failed rows:
+      fail query: |
+        SELECT campaign_id, start_date, end_date
+        FROM campaigns
+        WHERE end_date IS NOT NULL AND end_date < start_date
+      name: Campaign end_date is after start_date when present
+
+# ============================================================================
+# Table: email_activity
+# ============================================================================
+# Email engagement tracking (sent, opened, clicked)
+
+checks for email_activity:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [email_activity_id, customer_id, campaign_id, sent_at, event_type]
+        when wrong column type:
+          email_activity_id: integer
+          customer_id: integer
+          campaign_id: integer
+          sent_at: timestamp
+          event_type: varchar
+
+  # Row count validation (baseline minimum)
+  - row_count >= 2500
+
+  # Duplicate detection
+  - duplicate_count(email_activity_id) = 0:
+      name: Email activities have unique IDs
+
+  # Null validation
+  - missing_count(email_activity_id) = 0
+  - missing_count(customer_id) = 0
+  - missing_count(campaign_id) = 0
+  - missing_count(sent_at) = 0
+  - missing_count(event_type) = 0
+
+  # Foreign key integrity: All email activities reference valid customers
+  # Note: Uses jaffle_shop.erp.customers - adjust for your database setup
+  - failed rows:
+      fail query: |
+        SELECT ea.email_activity_id, ea.customer_id
+        FROM email_activity ea
+        WHERE NOT EXISTS (
+          SELECT 1 FROM jaffle_shop.erp.customers c
+          WHERE c.customer_id = ea.customer_id
+        )
+      name: All email activities have valid customer_id foreign keys
+
+  # Foreign key integrity: All email activities reference valid campaigns
+  - failed rows:
+      fail query: |
+        SELECT ea.email_activity_id, ea.campaign_id
+        FROM email_activity ea
+        LEFT JOIN campaigns c ON ea.campaign_id = c.campaign_id
+        WHERE c.campaign_id IS NULL
+      name: All email activities have valid campaign_id foreign keys
+
+  # Event type validation
+  - invalid_count(event_type) = 0:
+      valid values: ['sent', 'opened', 'clicked', 'bounced', 'unsubscribed']
+      name: All email activities have valid event types
+
+  # Timestamp validation
+  - invalid_count(sent_at) = 0:
+      valid format: timestamp
+  - invalid_count(opened_at) = 0:
+      valid format: timestamp
+      name: opened_at is valid timestamp when present
+  - invalid_count(clicked_at) = 0:
+      valid format: timestamp
+      name: clicked_at is valid timestamp when present
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+  # Business rules: Event sequence validation
+  - failed rows:
+      fail query: |
+        SELECT email_activity_id, sent_at, opened_at
+        FROM email_activity
+        WHERE opened_at IS NOT NULL AND opened_at < sent_at
+      name: opened_at is after sent_at when present
+
+  - failed rows:
+      fail query: |
+        SELECT email_activity_id, sent_at, clicked_at
+        FROM email_activity
+        WHERE clicked_at IS NOT NULL AND clicked_at < sent_at
+      name: clicked_at is after sent_at when present
+
+  # SLA/Freshness check: Email activities should be recent (within 60 days)
+  - freshness(sent_at) < 60d:
+      name: Email activities are within expected time window
+
+# ============================================================================
+# Table: web_sessions
+# ============================================================================
+# Website visitor session tracking
+
+checks for web_sessions:
+  # Schema validation
+  - schema:
+      fail:
+        when required column missing: [session_id, session_start, source]
+        when wrong column type:
+          session_id: integer
+          session_start: timestamp
+          source: varchar
+
+  # Row count validation (baseline minimum)
+  - row_count >= 1000
+
+  # Duplicate detection
+  - duplicate_count(session_id) = 0:
+      name: Web sessions have unique IDs
+
+  # Null validation
+  - missing_count(session_id) = 0
+  - missing_count(session_start) = 0
+  - missing_count(source) = 0
+
+  # Foreign key integrity: Customer ID is optional (anonymous sessions allowed)
+  # But when present, must reference valid customer
+  - failed rows:
+      fail query: |
+        SELECT ws.session_id, ws.customer_id
+        FROM web_sessions ws
+        WHERE ws.customer_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM jaffle_shop.erp.customers c
+            WHERE c.customer_id = ws.customer_id
+          )
+      name: All web sessions with customer_id have valid foreign keys
+
+  # Source validation
+  - invalid_count(source) = 0:
+      valid values: ['organic', 'paid_search', 'social', 'email', 'direct', 'referral']
+      name: All web sessions have valid source values
+
+  # Timestamp validation
+  - invalid_count(session_start) = 0:
+      valid format: timestamp
+  - invalid_count(session_end) = 0:
+      valid format: timestamp
+      name: session_end is valid timestamp when present
+  - invalid_count(created_at) = 0:
+      valid format: date
+  - invalid_count(updated_at) = 0:
+      valid format: date
+      name: updated_at is valid date when present
+
+  # Business rule: Session end should be after session start (when present)
+  - failed rows:
+      fail query: |
+        SELECT session_id, session_start, session_end
+        FROM web_sessions
+        WHERE session_end IS NOT NULL AND session_end < session_start
+      name: session_end is after session_start when present
+
+  # Business rule: Pages viewed should be non-negative (when present)
+  - failed rows:
+      fail query: |
+        SELECT session_id, pages_viewed
+        FROM web_sessions
+        WHERE pages_viewed IS NOT NULL AND pages_viewed < 0
+      name: pages_viewed is non-negative when present
+
+  # SLA/Freshness check: Web sessions should be recent (within 60 days)
+  - freshness(session_start) < 60d:
+      name: Web sessions are within expected time window
