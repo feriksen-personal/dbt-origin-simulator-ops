@@ -58,16 +58,19 @@ ingestion_simulator:
     #   export SQL_SERVER=your-server-name  # Without .database.windows.net
     #   export SQL_USER=your-username
     #   export SQL_PASSWORD=your-password
+    #   export SQL_DATABASE=your-database-name  # Database must exist
     #
     # Testing connection:
     #   dbt debug --profile ingestion_simulator --target azure
     #
-    # Note: Package creates jaffle_shop and jaffle_crm databases automatically
+    # Note: Uses single-database, multi-schema approach (similar to Databricks):
+    #   - 'erp' schema for shop tables (customers, products, orders, etc.)
+    #   - 'crm' schema for CRM tables (campaigns, email_activity, web_sessions)
     azure:
       type: sqlserver
       server: "{{ env_var('SQL_SERVER') }}.database.windows.net"
       port: 1433
-      database: master  # Package creates jaffle_shop/jaffle_crm databases
+      database: "{{ env_var('SQL_DATABASE', 'jaffle_shop') }}"  # Database must exist
       schema: dbo
       authentication: sql
       user: "{{ env_var('SQL_USER') }}"

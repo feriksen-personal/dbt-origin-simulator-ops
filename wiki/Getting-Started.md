@@ -157,8 +157,6 @@ Source schemas (`jaffle_shop`, `jaffle_crm`) are created in your specified catal
 
 ### Azure SQL (CDC / Change Tracking)
 
-> ⚠️ **In development** — Azure SQL support is being finalized.
-
 SQL Server-native CDC and change tracking patterns. Validate ingestion logic that depends on these features before hitting production.
 
 **Install adapter:**
@@ -175,6 +173,10 @@ export SQL_USER=sqladmin
 export SQL_PASSWORD=your-password
 ```
 
+**Pre-create databases:**
+
+Create `jaffle_shop` and `jaffle_crm` databases in your Azure SQL server before running the package. The package creates tables within these databases but does not create the databases themselves.
+
 **Configure profile** (`~/.dbt/profiles.yml`):
 
 ```yaml
@@ -184,12 +186,19 @@ ingestion_simulator:
     azure:
       type: sqlserver
       server: "{{ env_var('SQL_SERVER') }}.database.windows.net"
-      database: master
+      port: 1433
+      database: jaffle_shop
+      schema: dbo
+      authentication: sql
       user: "{{ env_var('SQL_USER') }}"
       password: "{{ env_var('SQL_PASSWORD') }}"
+      driver: "ODBC Driver 18 for SQL Server"
       encrypt: true
       trust_cert: false
+      threads: 4
 ```
+
+The package uses `USE` statements to switch between `jaffle_shop` and `jaffle_crm` databases. Tables are created in the `dbo` schema.
 
 ---
 

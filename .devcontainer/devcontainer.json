@@ -19,12 +19,54 @@
         "yzhang.markdown-all-in-one",
         "davidanson.vscode-markdownlint",
         "mtxr.sqltools",
+        "mtxr.sqltools-driver-mssql",
         "evidence-dev.sqltools-duckdb-driver"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
         "files.eol": "\n",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "sqltools.connections": [
+          {
+            "name": "Azure SQL - jaffle_shop",
+            "driver": "MSSQL",
+            "server": "feriksen-jaffledb-dev.database.windows.net",
+            "port": 1433,
+            "database": "jaffle_shop",
+            "username": "demo_admin",
+            "password": "!QAZmoment22",
+            "mssqlOptions": {
+              "encrypt": true,
+              "trustServerCertificate": true
+            }
+          },
+          {
+            "name": "Azure SQL - jaffle_crm",
+            "driver": "MSSQL",
+            "server": "feriksen-jaffledb-dev.database.windows.net",
+            "port": 1433,
+            "database": "jaffle_crm",
+            "username": "demo_admin",
+            "password": "!QAZmoment22",
+            "mssqlOptions": {
+              "encrypt": true,
+              "trustServerCertificate": true
+            }
+          },
+          {
+            "name": "Azure SQL - master",
+            "driver": "MSSQL",
+            "server": "feriksen-jaffledb-dev.database.windows.net",
+            "port": 1433,
+            "database": "master",
+            "username": "sqladmin",
+            "password": "!QAZmoment22",
+            "mssqlOptions": {
+              "encrypt": true,
+              "trustServerCertificate": true
+            }
+          }
+        ]
       }
     }
   },

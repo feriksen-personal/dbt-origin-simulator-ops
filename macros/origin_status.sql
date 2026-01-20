@@ -59,6 +59,12 @@
     {% set products_ref = target.catalog ~ '.erp.products' %}
     {% set orders_ref = target.catalog ~ '.erp.orders' %}
     {% set order_items_ref = target.catalog ~ '.erp.order_items' %}
+  {% elif target.type == 'sqlserver' %}
+    {# SQL Server: erp.table (single database, multi-schema) #}
+    {% set customers_ref = 'erp.customers' %}
+    {% set products_ref = 'erp.products' %}
+    {% set orders_ref = 'erp.orders' %}
+    {% set order_items_ref = 'erp.order_items' %}
   {% else %}
     {# DuckDB: jaffle_shop.table #}
     {% set customers_ref = shop_db ~ '.customers' %}
@@ -111,6 +117,11 @@
     {% set campaigns_ref = target.catalog ~ '.crm.campaigns' %}
     {% set email_activity_ref = target.catalog ~ '.crm.email_activity' %}
     {% set web_sessions_ref = target.catalog ~ '.crm.web_sessions' %}
+  {% elif target.type == 'sqlserver' %}
+    {# SQL Server: crm.table (single database, multi-schema) #}
+    {% set campaigns_ref = 'crm.campaigns' %}
+    {% set email_activity_ref = 'crm.email_activity' %}
+    {% set web_sessions_ref = 'crm.web_sessions' %}
   {% else %}
     {# DuckDB: jaffle_crm.table #}
     {% set campaigns_ref = crm_db ~ '.campaigns' %}

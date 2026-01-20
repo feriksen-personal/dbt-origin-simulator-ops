@@ -117,7 +117,7 @@ The `extras/` folder provides production-ready templates:
 | **DuckDB** | Local sources for development, CI/CD | ✅ Supported |
 | **MotherDuck** | Shared sources for team collaboration | ✅ Supported |
 | **Databricks** | Unity Catalog sources, Delta Sharing ingestion patterns | ✅ Supported |
-| **Azure SQL** | CDC-enabled sources, change tracking ingestion patterns | ⚠️ In development |
+| **Azure SQL** | CDC-enabled sources, change tracking ingestion patterns | ✅ Supported |
 
 ---
 
