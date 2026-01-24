@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Fake source systems so you can focus on the interesting stuff.</em>
+  <em>Source system scaffolding so you can focus on the interesting stuff.</em>
 </p>
 
 <p align="center">
