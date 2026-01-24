@@ -79,14 +79,16 @@ Same data every time. Customer #6 always appears in Day 1. Order #12 always gets
 
 ## Platforms
 
-| Platform | Notes |
-|----------|-------|
-| **DuckDB** | Local dev, CI/CD. Zero cost. |
-| **MotherDuck** | Shared sources for teams |
-| **Databricks** | Unity Catalog, Delta Sharing patterns |
-| **Azure SQL** | CDC/change tracking enabled |
+The simulator runs wherever you need source systems to exist:
 
-Start local, deploy to cloud if you need to. Same data, same deltas.
+| Platform | Why use it |
+|----------|------------|
+| **DuckDB** | Local dev, CI/CD pipelines. Zero cost, zero setup. |
+| **MotherDuck** | Shared sources when your team needs to hit the same data. |
+| **Databricks** | Test Delta Sharing ingestion, Unity Catalog patterns. See how your pipeline handles changes coming through shares. |
+| **Azure SQL** | The CDC/change tracking scenario. Source tables with change tracking enabled — test SQL Server-native ingestion patterns without touching production. |
+
+Start on DuckDB locally. If you need to test platform-specific ingestion (Delta Sharing, CDC), deploy the same data to that platform. Same schemas, same deltas, different infrastructure.
 
 ---
 
